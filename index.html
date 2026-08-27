@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Gumnaam — understated streetwear for the unseen. Discover Drop 001.">
+    <meta name="theme-color" content="#ffffff">
+    <title>Gumnaam — Est. for the Unseen</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <script src="js/products.js" defer></script>
+    <script src="js/main.js" defer></script>
+  </head>
+  <body class="home-page">
+    <div class="page-curtain" aria-hidden="true"></div>
+
+    <header class="site-header site-header--overlay">
+      <a class="site-brand" href="index.html" aria-label="Gumnaam home">
+        <img src="assets/logo.png" alt="Gumnaam calligraphy mark">
+        <span>Gumnaam</span>
+      </a>
+
+      <nav class="desktop-nav" aria-label="Primary navigation">
+        <a href="index.html">Home</a>
+        <a href="shop.html">Shop</a>
+        <a href="#about">About</a>
+        <a href="#contact">Contact</a>
+      </nav>
+
+      <div class="header-actions">
+        <a class="cart-link" href="#bag" data-cart-button>
+          Bag <span data-cart-count aria-label="0 items in bag">00</span>
+        </a>
+        <button class="menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="mobile-menu" aria-label="Open menu">
+          <span></span><span></span>
+        </button>
+      </div>
+    </header>
+
+    <div class="mobile-menu" id="mobile-menu" data-mobile-menu aria-hidden="true">
+      <div class="mobile-menu__meta"><span>Gumnaam®</span><span>Drop 001</span></div>
+      <nav aria-label="Mobile navigation">
+        <a href="index.html"><span>01</span>Home</a>
+        <a href="shop.html"><span>02</span>Shop</a>
+        <a href="#about"><span>03</span>About</a>
+        <a href="#contact"><span>04</span>Contact</a>
+      </nav>
+      <div class="mobile-menu__footer"><span>Karachi, PK</span><span>Est. for the unseen.</span></div>
+    </div>
+
+    <main>
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero__copy">
+          <p class="hero__edition">Independent objects / Drop 001</p>
+          <h1 id="hero-title"><span>Remain</span><span>Gumnaam.</span></h1>
+          <div class="hero__bottom">
+            <p>Clothes without noise.<br>Made for those who move differently.</p>
+            <a class="text-link" href="shop.html">Shop the collection <span>↗</span></a>
+          </div>
+          <img class="hero__calligraphy" src="assets/logo.png" alt="" aria-hidden="true">
+        </div>
+
+        <div class="hero__identity" aria-label="Gumnaam brand identity">
+          <div class="hero__identity-meta"><span>Identity / 001</span><span>Karachi, PK</span></div>
+          <img src="assets/logo.png" alt="Gumnaam calligraphy mark">
+          <div class="hero__identity-bottom">
+            <p>Unknown by name.<br>Known by presence.</p>
+            <span>01 / 04</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="marquee" aria-label="Drop information">
+        <div class="marquee__track">
+          <span>NEW DROP&nbsp; ✦ &nbsp;4 HOODIES&nbsp; ✦ &nbsp;LIMITED STOCK&nbsp; ✦ &nbsp;COMPLIMENTARY SHIPPING&nbsp; ✦ &nbsp;</span>
+          <span aria-hidden="true">NEW DROP&nbsp; ✦ &nbsp;4 HOODIES&nbsp; ✦ &nbsp;LIMITED STOCK&nbsp; ✦ &nbsp;COMPLIMENTARY SHIPPING&nbsp; ✦ &nbsp;</span>
+        </div>
+      </section>
+
+      <section class="collection section-pad" id="collection" aria-labelledby="collection-title">
+        <div class="section-heading reveal">
+          <div>
+            <p class="eyebrow">Drop 001 / Four forms</p>
+            <h2 id="collection-title">The first<br>four.</h2>
+          </div>
+          <p class="section-heading__aside">Built in heavyweight fleece.<br>Designed in silence.</p>
+        </div>
+        <div class="product-grid product-grid--featured" data-product-grid></div>
+        <div class="collection__footer reveal">
+          <p>Four pieces. No restock promised.</p>
+          <a class="button button--light" href="shop.html"><span>View all pieces</span><span>04</span></a>
+        </div>
+      </section>
+
+      <section class="statement" id="about" aria-labelledby="statement-title">
+        <div class="statement__copy reveal">
+          <p class="eyebrow eyebrow--light">The name / The absence</p>
+          <h2 id="statement-title">Identity is felt before it is named.</h2>
+          <p>
+            Gumnaam means nameless. It is a refusal of the obvious—a uniform for people who do not need to announce themselves to be remembered.
+          </p>
+          <a class="text-link text-link--light" href="shop.html">Enter Drop 001 <span>↗</span></a>
+        </div>
+        <div class="statement__image statement__image--cutout reveal" style="--reveal-delay: 120ms">
+          <img src="assets/cutout-camel-back-web.png" alt="Back view of the camel hoodie artwork" loading="lazy">
+          <span>Unknown by name.<br>Known by presence.</span>
+        </div>
+      </section>
+
+      <section class="lookbook" aria-labelledby="lookbook-title">
+        <div class="lookbook__heading section-pad reveal">
+          <p class="eyebrow">Study 001 / Details</p>
+          <h2 id="lookbook-title">Observed<br>in silence.</h2>
+          <div class="lookbook__aside">
+            <img src="assets/cutout-black-profile-web.png" alt="Black hoodie profile cutout" loading="lazy">
+            <p>Texture, form and the mark.<br>Nothing else is required.</p>
+          </div>
+        </div>
+        <div class="lookbook__grid">
+          <figure class="lookbook__item lookbook__item--wide reveal">
+            <img src="assets/black-closeup.jpg" alt="Black Gumnaam hoodie closeup" loading="lazy">
+            <figcaption>01 — Obsidian / Detail</figcaption>
+          </figure>
+          <figure class="lookbook__item reveal" style="--reveal-delay: 80ms">
+            <img src="assets/olive-closeup.jpg" alt="Field Gumnaam hoodie detail" loading="lazy">
+            <figcaption>04 — Field / Mark</figcaption>
+          </figure>
+          <figure class="lookbook__item reveal">
+            <img src="assets/navy-closeup.jpg" alt="Midnight Gumnaam hoodie closeup" loading="lazy">
+            <figcaption>03 — Midnight / Form</figcaption>
+          </figure>
+          <figure class="lookbook__item lookbook__item--wide reveal" style="--reveal-delay: 80ms">
+            <img src="assets/camel-closeup.jpg" alt="Dune Gumnaam hoodie closeup" loading="lazy">
+            <figcaption>02 — Dune / Script</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section class="newsletter" id="contact" aria-labelledby="newsletter-title">
+        <div class="newsletter__visual" aria-hidden="true">
+          <div class="newsletter__index">Stay<br>unknown.</div>
+          <img class="newsletter__cutout" src="assets/cutout-olive-front-web.png" alt="">
+        </div>
+        <div class="newsletter__content reveal">
+          <p class="eyebrow eyebrow--light">Private transmission</p>
+          <h2 id="newsletter-title">Join the list.</h2>
+          <p>First access to new objects, private releases and nothing unnecessary.</p>
+          <form class="newsletter-form" data-newsletter novalidate>
+            <label class="sr-only" for="home-email">Email address</label>
+            <div class="newsletter-form__row">
+              <input id="home-email" type="email" name="email" autocomplete="email" placeholder="EMAIL ADDRESS" required>
+              <button type="submit" aria-label="Join the mailing list">Join <span>↗</span></button>
+            </div>
+            <p class="newsletter-form__response" data-form-response aria-live="polite"></p>
+          </form>
+          <div class="contact-links" aria-label="Contact Gumnaam">
+            <a href="https://www.instagram.com/gumnaamclothingpk/" target="_blank" rel="noopener noreferrer">
+              <span>Instagram</span><strong>@gumnaamclothingpk &#8599;</strong>
+            </a>
+            <a href="mailto:gumnaamofficialpk@gmail.com">
+              <span>Email</span><strong>gumnaamofficialpk@gmail.com &#8599;</strong>
+            </a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="site-footer__top">
+        <a class="footer-mark" href="index.html" aria-label="Gumnaam home"><img src="assets/logo.png" alt="Gumnaam"></a>
+        <p>Est. for the unseen.<br>Karachi, Pakistan.</p>
+      </div>
+      <div class="site-footer__links">
+        <div><p>Explore</p><a href="index.html">Home</a><a href="shop.html">Shop</a><a href="index.html#about">About</a></div>
+        <div><p>Drop 001</p><a href="product.html?id=obsidian">Obsidian</a><a href="product.html?id=camel">Dune</a><a href="product.html?id=navy">Midnight</a><a href="product.html?id=olive">Field</a></div>
+        <div><p>Connect</p><a href="https://www.instagram.com/gumnaamclothingpk/" target="_blank" rel="noopener noreferrer">Instagram &#8599;</a><a href="mailto:gumnaamofficialpk@gmail.com">Email &#8599;</a></div>
+      </div>
+      <div class="site-footer__bottom">
+        <span>© <span data-current-year></span> Gumnaam</span><span>All rights reserved</span><span>PK / WW</span>
+      </div>
+    </footer>
+  </body>
+</html>

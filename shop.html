@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Shop Gumnaam Drop 001 — four heavyweight streetwear hoodies in a limited first release.">
+    <meta name="theme-color" content="#ffffff">
+    <title>Shop Drop 001 — Gumnaam</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <script src="js/products.js" defer></script>
+    <script src="js/main.js" defer></script>
+  </head>
+  <body class="inner-page shop-page">
+    <div class="page-curtain" aria-hidden="true"></div>
+
+    <header class="site-header">
+      <a class="site-brand" href="index.html" aria-label="Gumnaam home">
+        <img src="assets/logo.png" alt="Gumnaam calligraphy mark"><span>Gumnaam</span>
+      </a>
+      <nav class="desktop-nav" aria-label="Primary navigation">
+        <a href="index.html">Home</a><a href="shop.html">Shop</a><a href="index.html#about">About</a><a href="index.html#contact">Contact</a>
+      </nav>
+      <div class="header-actions">
+        <a class="cart-link" href="#bag" data-cart-button>Bag <span data-cart-count aria-label="0 items in bag">00</span></a>
+        <button class="menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="mobile-menu" aria-label="Open menu"><span></span><span></span></button>
+      </div>
+    </header>
+
+    <div class="mobile-menu" id="mobile-menu" data-mobile-menu aria-hidden="true">
+      <div class="mobile-menu__meta"><span>Gumnaam®</span><span>Drop 001</span></div>
+      <nav aria-label="Mobile navigation">
+        <a href="index.html"><span>01</span>Home</a><a href="shop.html"><span>02</span>Shop</a><a href="index.html#about"><span>03</span>About</a><a href="index.html#contact"><span>04</span>Contact</a>
+      </nav>
+      <div class="mobile-menu__footer"><span>Karachi, PK</span><span>Est. for the unseen.</span></div>
+    </div>
+
+    <main>
+      <section class="shop-hero" aria-labelledby="shop-title">
+        <div class="shop-hero__meta"><span>Gumnaam / Collection</span><span>Drop 001 — 2026</span></div>
+        <h1 id="shop-title"><span>The</span><span>First Four</span></h1>
+        <p>Four studies in weight, form and restraint.<br>Limited by design.</p>
+      </section>
+
+      <section class="shop-catalog section-pad" aria-label="Hoodie collection">
+        <div class="catalog-toolbar">
+          <p>Drop 001 <span>04 objects</span></p>
+          <label for="product-sort">Sort by</label>
+          <select id="product-sort" data-product-sort>
+            <option value="featured">Featured</option>
+            <option value="price-low">Price: low to high</option>
+            <option value="price-high">Price: high to low</option>
+            <option value="name">Name</option>
+          </select>
+        </div>
+        <div class="shop-catalog__body">
+          <aside class="catalog-sidebar" aria-label="Collection filters">
+            <div class="catalog-sidebar__group">
+              <p>Category</p>
+              <a class="is-active" href="#catalog-products">All pieces <span>04</span></a>
+              <a href="#catalog-products">Hoodies <span>04</span></a>
+            </div>
+            <div class="catalog-sidebar__group">
+              <p>Collection</p>
+              <a class="is-active" href="#catalog-products">Drop 001 <span>04</span></a>
+            </div>
+            <div class="catalog-sidebar__group">
+              <p>Available sizes</p>
+              <div class="catalog-sidebar__sizes" aria-label="Available sizes">
+                <span>S</span><span>M</span><span>L</span><span>XL</span>
+              </div>
+            </div>
+            <div class="catalog-sidebar__group">
+              <p>Availability</p>
+              <span class="catalog-sidebar__status"><i></i> In stock</span>
+            </div>
+          </aside>
+          <div class="product-grid product-grid--shop" id="catalog-products" data-product-grid data-shop-grid></div>
+        </div>
+      </section>
+
+      <section class="catalog-note">
+        <p class="eyebrow eyebrow--light">Gumnaam object standard</p>
+        <p class="catalog-note__large reveal">Heavy enough to hold its form.<br>Quiet enough to become yours.</p>
+        <div class="catalog-note__facts reveal">
+          <span>400–420 GSM</span><span>Unisex form</span><span>Small-run production</span><span>Complimentary delivery</span>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="site-footer__top">
+        <a class="footer-mark" href="index.html" aria-label="Gumnaam home"><img src="assets/logo.png" alt="Gumnaam"></a>
+        <p>Est. for the unseen.<br>Karachi, Pakistan.</p>
+      </div>
+      <div class="site-footer__links">
+        <div><p>Explore</p><a href="index.html">Home</a><a href="shop.html">Shop</a><a href="index.html#about">About</a></div>
+        <div><p>Drop 001</p><a href="product.html?id=obsidian">Obsidian</a><a href="product.html?id=camel">Dune</a><a href="product.html?id=navy">Midnight</a><a href="product.html?id=olive">Field</a></div>
+        <div><p>Connect</p><a href="https://www.instagram.com/gumnaamclothingpk/" target="_blank" rel="noopener noreferrer">Instagram &#8599;</a><a href="mailto:gumnaamofficialpk@gmail.com">Email &#8599;</a></div>
+      </div>
+      <div class="site-footer__bottom"><span>© <span data-current-year></span> Gumnaam</span><span>All rights reserved</span><span>PK / WW</span></div>
+    </footer>
+  </body>
+</html>
