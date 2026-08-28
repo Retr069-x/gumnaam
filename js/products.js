@@ -11,7 +11,7 @@ window.GUMNAAM_PRODUCTS = [
     number: "01",
     name: "Obsidian Mark Hoodie",
     shortName: "Obsidian",
-    price: 8950,
+    price: 2499,
     stock: 6,
     description:
       "A heavyweight black pullover cut with a relaxed shoulder and finished with the Gumnaam mark at the chest.",
@@ -31,7 +31,7 @@ window.GUMNAAM_PRODUCTS = [
     number: "02",
     name: "Dune Script Hoodie",
     shortName: "Dune",
-    price: 9250,
+    price: 2499,
     stock: 4,
     description:
       "A warm neutral heavyweight layer carrying an expressive script across the chest and a clean, oversized silhouette.",
@@ -51,7 +51,7 @@ window.GUMNAAM_PRODUCTS = [
     number: "03",
     name: "Midnight Mark Hoodie",
     shortName: "Midnight",
-    price: 8950,
+    price: 2499,
     stock: 8,
     description:
       "A deep midnight essential with a quiet chest mark, generous hood and an easy everyday drape.",
@@ -70,7 +70,7 @@ window.GUMNAAM_PRODUCTS = [
     number: "04",
     name: "Field Mark Hoodie",
     shortName: "Field",
-    price: 8950,
+    price: 2499,
     stock: 3,
     description:
       "A grounded, minimal pullover with the Gumnaam mark placed discreetly over the heart and a layered street fit.",
