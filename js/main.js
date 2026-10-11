@@ -1,39 +1,7 @@
-/**
- * Shared Gumnaam storefront interactions.
- * Cart state is intentionally local-only. Replace GumnaamCart.add() with your
- * Shopify / Stripe / custom checkout call when a live commerce backend is ready.
- */
 (function gumnaamStorefront() {
   "use strict";
 
-  const CART_KEY = "gumnaam-cart-v1";
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-  function readCart() {
-    try {
-      const saved = JSON.parse(window.localStorage.getItem(CART_KEY));
-      return Array.isArray(saved) ? saved : [];
-    } catch (_error) {
-      return [];
-    }
-  }
-
-  function writeCart(cart) {
-    try {
-      window.localStorage.setItem(CART_KEY, JSON.stringify(cart));
-    } catch (_error) {
-      // The counter still works for this view if storage is unavailable.
-    }
-  }
-
-  function updateCartCount() {
-    const count = readCart().length;
-    document.querySelectorAll("[data-cart-count]").forEach((node) => {
-      node.textContent = String(count).padStart(2, "0");
-      node.setAttribute("aria-label", `${count} item${count === 1 ? "" : "s"} in bag`);
-    });
-    return count;
-  }
 
   function showToast(message) {
     let toast = document.querySelector(".site-toast");
@@ -49,17 +17,6 @@
     window.clearTimeout(showToast.timeout);
     showToast.timeout = window.setTimeout(() => toast.classList.remove("is-visible"), 2400);
   }
-
-  window.GumnaamCart = {
-    add(item) {
-      const cart = readCart();
-      cart.push({ ...item, addedAt: Date.now() });
-      writeCart(cart);
-      const count = updateCartCount();
-      showToast(`Added to bag · ${count} item${count === 1 ? "" : "s"}`);
-    },
-    count: updateCartCount,
-  };
 
   function setupHeader() {
     const header = document.querySelector(".site-header");
@@ -196,14 +153,6 @@
   }
 
   function setupUtilityActions() {
-    document.querySelectorAll("[data-cart-button]").forEach((button) => {
-      button.addEventListener("click", (event) => {
-        event.preventDefault();
-        const count = updateCartCount();
-        showToast(count ? `Your bag holds ${count} item${count === 1 ? "" : "s"}. Checkout coming soon.` : "Your bag is empty.");
-      });
-    });
-
     document.addEventListener("click", (event) => {
       if (!event.target.closest("[data-size-guide]")) return;
       showToast("Relaxed fit · S–XL · Take your usual size");
@@ -215,7 +164,6 @@
   }
 
   document.addEventListener("DOMContentLoaded", () => {
-    updateCartCount();
     setupHeader();
     setupMobileMenu();
     setupReveal();

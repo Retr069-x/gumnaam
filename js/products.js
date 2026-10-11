@@ -1,17 +1,10 @@
-/**
- * GUMNAAM PRODUCT CATALOG
- * --------------------------------------------------------------------------
- * Edit this array to change product names, prices, copy, stock, sizes or photos.
- * Prices are stored as numbers in PKR. Replace the sample values before launch.
- * Every image path points to the supplied photography copied into /assets.
- */
-window.GUMNAAM_PRODUCTS = [
+globalThis.GUMNAAM_PRODUCTS = [
   {
     id: "obsidian",
     number: "01",
     name: "Obsidian Mark Hoodie",
     shortName: "Obsidian",
-    price: 2499,
+    price: 1999,
     stock: 6,
     description:
       "A heavyweight black pullover cut with a relaxed shoulder and finished with the Gumnaam mark at the chest.",
@@ -31,7 +24,7 @@ window.GUMNAAM_PRODUCTS = [
     number: "02",
     name: "Dune Script Hoodie",
     shortName: "Dune",
-    price: 2499,
+    price: 1999,
     stock: 4,
     description:
       "A warm neutral heavyweight layer carrying an expressive script across the chest and a clean, oversized silhouette.",
@@ -51,7 +44,7 @@ window.GUMNAAM_PRODUCTS = [
     number: "03",
     name: "Midnight Mark Hoodie",
     shortName: "Midnight",
-    price: 2499,
+    price: 1999,
     stock: 8,
     description:
       "A deep midnight essential with a quiet chest mark, generous hood and an easy everyday drape.",
@@ -70,7 +63,7 @@ window.GUMNAAM_PRODUCTS = [
     number: "04",
     name: "Field Mark Hoodie",
     shortName: "Field",
-    price: 2499,
+    price: 1999,
     stock: 3,
     description:
       "A grounded, minimal pullover with the Gumnaam mark placed discreetly over the heart and a layered street fit.",
@@ -88,6 +81,8 @@ window.GUMNAAM_PRODUCTS = [
 
 (function productCatalog() {
   "use strict";
+
+  if (typeof window === "undefined" || typeof document === "undefined") return;
 
   const products = window.GUMNAAM_PRODUCTS;
   const money = (value) => `PKR ${value.toLocaleString("en-PK")}`;
@@ -171,8 +166,8 @@ window.GUMNAAM_PRODUCTS = [
             <p class="size-picker__message" data-size-message aria-live="polite">Choose a size to continue.</p>
           </fieldset>
 
-          <button class="button button--dark add-to-cart" type="button" data-add-product="${product.id}">
-            <span>Add to bag</span><span>${money(product.price)}</span>
+          <button class="button button--dark buy-now" type="button" data-buy-product="${product.id}">
+            <span>Buy now</span><span>${money(product.price)}</span>
           </button>
           <p class="stock-note"><span class="stock-note__dot"></span>Only ${product.stock} left in this drop</p>
 
@@ -191,7 +186,7 @@ window.GUMNAAM_PRODUCTS = [
             </details>
             <details>
               <summary>Delivery <span>+</span></summary>
-              <p>Complimentary delivery across Pakistan. Orders are dispatched within 2–3 working days.</p>
+              <p>Delivery across Pakistan. Cash on delivery includes a PKR 200 charge per order. Review the full total at checkout.</p>
             </details>
           </div>
         </div>
@@ -245,7 +240,7 @@ window.GUMNAAM_PRODUCTS = [
       });
     });
 
-    document.querySelector("[data-add-product]")?.addEventListener("click", (event) => {
+    document.querySelector("[data-buy-product]")?.addEventListener("click", () => {
       const selected = document.querySelector("[data-size].is-selected");
       if (!selected) {
         message.textContent = "Please select a size first.";
@@ -255,16 +250,8 @@ window.GUMNAAM_PRODUCTS = [
       }
 
       message.classList.remove("has-error");
-      window.GumnaamCart?.add({ id: product.id, size: selected.dataset.size });
-
-      const button = event.currentTarget;
-      const original = button.innerHTML;
-      button.classList.add("is-added");
-      button.innerHTML = "<span>Added to bag</span><span>✓</span>";
-      window.setTimeout(() => {
-        button.classList.remove("is-added");
-        button.innerHTML = original;
-      }, 1600);
+      const params = new URLSearchParams({ id: product.id, size: selected.dataset.size });
+      window.location.href = `checkout.html?${params}`;
     });
   }
 
