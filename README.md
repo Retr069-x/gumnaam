@@ -33,7 +33,9 @@ Screenshots do not automatically verify a transfer. Review actual Easypaisa fund
 With Node.js 22 or later:
 
 ```sh
-node --test tests/orders.test.mjs
+node --test tests/orders.test.mjs tests/dashboard.test.mjs
 ```
 
 The tests use fake services and never contact Supabase, send email or create real orders. They cover pricing, validation, private-file handling, retries and notification failure. Live database access, real email delivery and CAPTCHA still need deployment checks.
+
+If deploying through the Supabase browser editor, use the standalone files in `supabase/dashboard/`. Regenerate them after changing products or backend code with `node scripts/package-dashboard-functions.mjs`. This is optional backend packaging, not a storefront build step.

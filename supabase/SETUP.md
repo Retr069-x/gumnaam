@@ -49,6 +49,22 @@ The hosted runtime supplies `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`. They
 
 ## 5. Deploy functions
 
+### Browser editor (no CLI)
+
+Use the generated standalone files in `supabase/dashboard/`, not the short importing entrypoints in `supabase/functions/`. Each dashboard file includes the catalog and shared backend code and contains no external imports or credentials.
+
+1. In project `Gumnaam` (`mcpzozjhjbjgeaaszdhl`), open Edge Functions → Deploy a new function → Via Editor.
+2. Name the function exactly `create-order`. Replace the default `index.ts` content with the complete contents of `supabase/dashboard/create-order.ts` and deploy.
+3. In the function's settings, turn off gateway JWT verification so guest checkout can reach the handler. The handler validates Turnstile, hostname, origin and request limits; service credentials never reach the browser. Do not remove these in-code checks.
+4. Repeat for `retry-notifications`, using `supabase/dashboard/retry-notifications.ts`. Turn off its gateway JWT verification too; the handler itself requires the private `CRON_SECRET` bearer token.
+5. Run the opening checks below. Dashboard code is versioned here in GitHub, but the dashboard itself has no automatic source rollback.
+
+After edits to the catalog or backend, regenerate both copies using `node scripts/package-dashboard-functions.mjs`, run the tests and redeploy both functions. Do not edit generated dashboard copies directly.
+
+The storefront endpoint is `https://mcpzozjhjbjgeaaszdhl.supabase.co/functions/v1/create-order`. Its public Turnstile site key has been configured. It remains closed when backend readiness checks fail.
+
+### Connected deployment tool or CLI
+
 Deploy `create-order` and `retry-notifications` with their shared `orders.mjs` file and imported `js/products.js`. The entrypoints are `index.ts`; the application logic is plain JavaScript and native HTTP requests, with no npm dependencies.
 
 Use the connected Supabase deployment tool, or an official Supabase CLI. Before using a CLI, read its current `--help`, `functions --help`, `functions deploy --help` and `secrets --help` and select this exact project. `supabase/config.toml` disables gateway JWT verification for these functions: guest checkout is protected by server-verified Turnstile and request limits; the retry function checks `CRON_SECRET`. Do not expose the service-role key to guests.
