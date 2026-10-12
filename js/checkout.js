@@ -118,6 +118,8 @@ document.addEventListener("DOMContentLoaded", function checkout() {
         status.textContent = "Bag checkout is being prepared. Use Buy now on a product page for one piece, or message us on Instagram. Do not transfer money for this bag yet.";
         return;
       }
+      const marketing = document.querySelector("[data-marketing-consent]");
+      if (marketing) marketing.hidden = health.ownerVersion !== 1;
       ready = true;
       form.querySelector('[value="easypaisa"]').disabled = false;
       window.onGumnaamCaptchaReady = () => {
@@ -163,7 +165,8 @@ document.addEventListener("DOMContentLoaded", function checkout() {
       notes: form.elements.notes.value.trim(),
       paymentMethod: form.elements.paymentMethod.value,
       transactionId: prepaid ? form.elements.transactionId.value.trim() : "",
-      consent: form.elements.consent.checked
+      consent: form.elements.consent.checked,
+      marketingConsent: form.elements.marketingConsent?.checked === true
     };
     const submittedLines = cartMode ? cartLines.map((line) => ({ ...line })) : [{ productId: order.productId, size: order.size, quantity: order.quantity }];
     if (cartMode) order.items = submittedLines;
@@ -219,5 +222,6 @@ document.addEventListener("DOMContentLoaded", function checkout() {
   });
 
   form.elements.phone.addEventListener("input", () => form.elements.phone.setCustomValidity(""));
+  form.elements.marketingConsent?.addEventListener("change", () => { form.elements.email.required = form.elements.marketingConsent.checked; });
   setup();
 });

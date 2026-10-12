@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow, noarchive">
+  <meta name="referrer" content="no-referrer">
+  <meta name="description" content="Private Gumnaam owner workspace.">
+  <title>Owner workspace — Gumnaam</title>
+  <link rel="icon" type="image/png" href="assets/logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=DM+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/owner.css">
+  <script src="js/owner-config.js" defer></script>
+  <script type="module" src="js/owner.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#owner-main">Skip to workspace</a>
+  <header class="owner-header">
+    <a class="owner-brand" href="index.html"><img src="assets/logo.png" alt="" width="40" height="40"><span>GUMNAAM<small>Private workspace / 01</small></span></a>
+    <a class="quiet-link" href="index.html" target="_blank" rel="noopener noreferrer">View store ↗</a>
+  </header>
+  <main id="owner-main">
+    <section class="owner-login" id="login-view" aria-labelledby="login-title">
+      <div class="login-story"><p class="eyebrow">Behind the mark.</p><h1 id="login-title">The other<br>side of<br>Gumnaam.</h1><p>Orders. People. The details.<br>A private place to keep things moving.</p><span class="login-stamp">Owner access only / Faisalabad, PK</span></div>
+      <div class="login-card">
+        <p class="eyebrow">01 / Restricted access</p><h2>Sign in.</h2>
+        <form id="login-form">
+          <label>Email<input name="email" type="email" autocomplete="username" required maxlength="254" value="gumnaamofficialpk@gmail.com"></label>
+          <label>Password<input name="password" type="password" autocomplete="current-password" required maxlength="256"></label>
+          <button class="button primary" type="submit">Enter workspace <span>↗</span></button>
+        </form>
+        <form id="login-mfa" hidden>
+          <p>Enter the code from your authenticator.</p>
+          <label>Six-digit code<input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required></label>
+          <button class="button primary" type="submit">Verify and enter <span>↗</span></button>
+          <button class="button" type="button" id="mfa-back">Back to sign in</button>
+        </form>
+        <p class="form-status" id="login-status" role="status" aria-live="polite">Your storefront customers cannot access this workspace.</p>
+        <div class="login-security"><span>Supabase authenticated</span><span>No public sign-up</span><span>Session stays in this tab</span></div>
+        <p class="fine-print">First visit? Your owner account must be created and authorised in Supabase. This is not your Supabase dashboard password. Use a unique password.</p>
+      </div>
+    </section>
+
+    <div class="workspace" id="workspace" hidden>
+      <aside class="owner-sidebar" aria-label="Workspace navigation">
+        <p class="eyebrow">Operations / Drop 001</p>
+        <nav id="owner-nav" aria-label="Owner sections">
+          <button type="button" data-view="overview" aria-current="page"><span>01</span> Overview</button>
+          <button type="button" data-view="orders"><span>02</span> Orders</button>
+          <button type="button" data-view="customers"><span>03</span> Customers</button>
+          <button type="button" data-view="activity"><span>04</span> Activity</button>
+          <button type="button" data-view="security"><span>05</span> Security</button>
+        </nav>
+        <div class="sidebar-end"><p id="owner-email"></p><p class="fine-print">Private session.<br>Locks after 15 minutes idle.</p><button type="button" class="quiet-link" id="sign-out">Sign out ↗</button></div>
+      </aside>
+      <div class="workspace-body">
+        <div class="workspace-heading"><div><p class="eyebrow" id="view-label">01 / At a glance</p><h1 id="view-title" tabindex="-1">Overview.</h1></div><div class="workspace-tools"><p class="fine-print" id="last-refreshed"></p><button type="button" class="button compact" id="refresh">Refresh ↻</button></div></div>
+        <p class="form-status" id="workspace-status" role="status" aria-live="polite"></p>
+
+        <section id="overview-view" aria-labelledby="view-title">
+          <form id="overview-range" class="filter-bar">
+            <label>Placed from<input name="from" type="date"></label><label>Through<input name="until" type="date"></label>
+            <button type="submit" class="button compact">Apply range</button><button type="button" class="quiet-link" id="all-time">All time</button>
+          </form>
+          <p class="fine-print metric-explanation">Order-date cohort, Pakistan time. Test orders excluded. Revenue is recorded manually; it is not a bank balance or profit.</p>
+          <div class="metric-grid" id="metrics" aria-label="Business metrics"></div>
+          <div class="attention" id="attention" aria-label="Needs attention"></div>
+          <div class="insight-grid"><section class="panel"><div class="panel-heading"><h2>Delivered &amp; paid.</h2><span class="eyebrow">Recent 30 days in range</span></div><p class="fine-print">Grouped by order placement date. Delivery included.</p><div id="revenue-chart" class="revenue-chart"></div></section><section class="panel"><h2>The pieces.</h2><p class="fine-print">Delivered, paid orders only. Merchandise value.</p><div id="top-products"></div></section></div>
+          <div class="insight-grid"><section class="panel"><h2>Order flow.</h2><div id="status-breakdown"></div></section><section class="panel"><h2>Where they go.</h2><div id="top-cities"></div></section></div>
+          <p class="fine-print">Payments recorded includes verified Easypaisa and collected COD, excluding refunded payments. Delivered &amp; paid requires both delivery and payment. Refunds are full-order records, not automatic transfers.</p>
+        </section>
+
+        <section id="orders-view" hidden aria-labelledby="view-title">
+          <form id="order-filters" class="filter-bar">
+            <label class="search-field">Find an order<input name="q" type="search" placeholder="Reference, name, email, phone or city" maxlength="100"></label>
+            <label>Status<select name="status"><option value="">All statuses</option><option value="pending_confirmation">Pending confirmation</option><option value="pending_verification">Pending verification</option><option value="confirmed">Confirmed</option><option value="dispatched">Dispatched</option><option value="completed">Delivered</option><option value="cancelled">Cancelled</option></select></label>
+            <label>Payment method<select name="payment"><option value="">Both methods</option><option value="cod">Cash on delivery</option><option value="easypaisa">Easypaisa</option></select></label>
+            <label>Placed from<input name="from" type="date"></label><label>Through<input name="until" type="date"></label>
+            <label class="checkbox"><input name="test" type="checkbox">Include test orders</label><button type="submit" class="button compact">Apply filters</button>
+          </form>
+          <div class="list-heading"><p id="order-count" class="eyebrow"></p><button type="button" class="quiet-link" data-export="orders">Export filtered orders ↓</button></div>
+          <div class="table-scroll"><table class="data-table"><caption class="sr-only">Orders matching your filters</caption><thead><tr><th scope="col">Order / Placed</th><th scope="col">Customer</th><th scope="col">Status</th><th scope="col">Payment</th><th scope="col" class="numeric">Total</th><th scope="col"><span class="sr-only">Details</span></th></tr></thead><tbody id="order-rows"></tbody></table></div>
+          <div class="pagination"><button type="button" class="button compact" data-page="orders-prev">Previous</button><span id="order-page"></span><button type="button" class="button compact" data-page="orders-next">Next</button></div>
+        </section>
+
+        <section id="customers-view" hidden aria-labelledby="view-title">
+          <div class="panel notice"><h2>People, not a mailing list.</h2><p>Order contact details are for fulfilment. Only explicit checkout email opt-ins appear in the marketing export. Keep exported files private. Phone numbers do not carry promotional WhatsApp consent.</p></div>
+          <form id="customer-filters" class="filter-bar"><label class="search-field">Find a customer<input name="q" type="search" placeholder="Name, email, phone or city" maxlength="100"></label><label class="checkbox"><input name="marketing" type="checkbox">Email opt-ins only</label><button class="button compact" type="submit">Apply filters</button></form>
+          <div class="list-heading"><p id="customer-count" class="eyebrow"></p><div class="export-links"><button type="button" class="quiet-link" data-export="customers">Operational CSV ↓</button><button type="button" class="quiet-link" data-export="marketing">Email opt-ins CSV ↓</button></div></div>
+          <div class="table-scroll"><table class="data-table"><caption class="sr-only">Customer records, grouped by email when provided, otherwise phone</caption><thead><tr><th scope="col">Customer</th><th scope="col">Contact</th><th scope="col">Orders / Last placed</th><th scope="col" class="numeric">Delivered &amp; paid</th><th scope="col">Email permission</th></tr></thead><tbody id="customer-rows"></tbody></table></div>
+          <p class="fine-print">Grouped by email when supplied, otherwise phone. Shared emails can represent more than one person. Test orders excluded. Opt-ins are recorded choices, not independently verified email ownership.</p>
+          <div class="pagination"><button type="button" class="button compact" data-page="customers-prev">Previous</button><span id="customer-page"></span><button type="button" class="button compact" data-page="customers-next">Next</button></div>
+          <div class="panel"><h2>Before your first campaign.</h2><p>Use an email-marketing service that handles unsubscribe links, bounces and suppression. Import only the email opt-in export, and apply that provider’s opt-outs as well. No promotional messages are sent by this panel.</p></div>
+        </section>
+
+        <section id="activity-view" hidden aria-labelledby="view-title"><p class="fine-print">Latest 50 panel actions. Order details keep their latest 25 changes. Supabase dashboard edits are outside this panel’s audit trail.</p><div id="activity-list" class="activity-list"></div></section>
+
+        <section id="security-view" hidden aria-labelledby="view-title">
+          <div class="insight-grid"><section class="panel"><h2>Your access.</h2><dl class="detail-list"><div><dt>Account</dt><dd id="security-email"></dd></div><div><dt>Authentication</dt><dd>Supabase Auth + owner allowlist</dd></div><div><dt>Session</dt><dd>Memory only. Ends on reload or after 15 minutes idle.</dd></div><div><dt>Customer records</dt><dd>Private server access. No guest table permissions.</dd></div><div><dt>Receipts</dt><dd>Private, 60-second preview link.</dd></div></dl></section>
+          <section class="panel"><h2>Authenticator.</h2><p id="mfa-status">Checking account security…</p><button type="button" id="enroll-mfa" class="button compact" hidden>Set up two-factor sign-in</button><div id="mfa-enrollment" hidden><p>Scan this code in your authenticator, then verify a fresh code. Keep access to your authenticator secure.</p><img id="mfa-qr" alt="Authenticator setup QR code" width="220" height="220"><form id="enrollment-form"><label>Six-digit code<input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required></label><button class="button primary" type="submit">Verify authenticator</button></form></div><p class="form-status" id="security-status" role="status"></p></section></div>
+          <div class="panel"><h2>Keep the workspace private.</h2><p>Use a unique password and enable your authenticator. Sign out on shared devices. Do not share CSV exports or receipt previews publicly. Recover a lost account through your Supabase project administration; this panel does not expose recovery credentials.</p></div>
+        </section>
+        <footer class="workspace-footer"><span>GUMNAAM / PRIVATE OPERATIONS</span><span>All money in PKR. All dates in Pakistan time.</span></footer>
+      </div>
+    </div>
+  </main>
+
+  <dialog id="order-detail" aria-labelledby="detail-title">
+    <div class="dialog-heading"><div><p class="eyebrow">Order / The details</p><h2 id="detail-title">Order details.</h2></div><button type="button" class="button compact" data-close="order-detail">Close ×</button></div>
+    <div id="detail-content"></div>
+    <p class="form-status" id="detail-status" role="status" aria-live="polite"></p>
+  </dialog>
+  <dialog id="confirm-dialog" aria-labelledby="confirm-title"><h2 id="confirm-title">Confirm this action.</h2><p id="confirm-copy"></p><form method="dialog" class="confirm-buttons"><button class="button" value="cancel">Keep as is</button><button class="button primary" value="confirm">Confirm</button></form></dialog>
+  <noscript><p class="noscript">JavaScript is required for the private owner workspace. Customer records are never embedded in this page.</p></noscript>
+</body>
+</html>

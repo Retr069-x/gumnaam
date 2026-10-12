@@ -27,6 +27,14 @@ Every current hoodie is PKR 1,999. Delivery adds PKR 200 once per order for both
 
 See [Supabase setup](supabase/SETUP.md). It covers private receipts, Resend email alerts, spam protection and notification retries.
 
+## Owner workspace
+
+Open `/admin` for the private order workspace. First activate it with [owner setup](supabase/OWNER-SETUP.md): run `supabase/owner-panel.sql`, create/confirm the agreed owner Auth user, run `supabase/owner-access.sql`, deploy `supabase/dashboard/owner-api.ts`, and redeploy the order functions for optional email consent. Until activation, the public sign-in page cannot read orders.
+
+UI: `admin.html`, `css/owner.css`, `js/owner.js`. Auth: `js/owner-auth.mjs`. Public connection settings: `js/owner-config.js`. Server-only API: `supabase/functions/_shared/owner.mjs`. No secret key or password belongs in the frontend. The Sites skill's local-code workflow keeps the panel on the existing GitHub/Vercel deployment.
+
+The workspace includes status/payment management, private screenshot previews, customer search, tracking/notes, test-order exclusion, audit history, bounded CSV exports and order-date revenue reports. Marketing CSV is limited to explicit optional email opt-ins with recorded opt-outs excluded. No bulk email is sent. Reports are not bank balances or profit; inventory remains the existing catalog's per-order limits.
+
 For an existing installation, run `supabase/delivery-fee-update.sql` instead of rerunning `schema.sql`, then redeploy the updated dashboard functions. The update preserves old order totals and receipts. The database column `cod_fee` keeps its legacy name but stores delivery for both payment methods. Checkout stays closed against an older backend to prevent mismatched payment amounts.
 
 For the new multi-item checkout on an already configured installation, run `supabase/cart-update.sql`, then redeploy `supabase/dashboard/create-order.ts` and `supabase/dashboard/retry-notifications.ts`. Do not rerun the bootstrap schema or recreate secrets, bucket or Cron. This adds nullable line-item/subtotal fields without modifying old orders. Until the backend reports `cartVersion: 1`, the bag can be edited but its submission is closed; existing Buy now checkout remains available.

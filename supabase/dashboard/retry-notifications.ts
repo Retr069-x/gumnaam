@@ -115,6 +115,8 @@ function validateOrder(input) {
   if (!/^(?:03\d{9}|923\d{9})$/.test(rawPhone)) throw new OrderError("Enter a valid Pakistan mobile number.");
   const email = field(input.email ?? "", "email", 0, 254);
   if (email && (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || /[\r\n]/.test(email))) throw new OrderError("Check your email address.");
+  if (input.marketingConsent !== undefined && typeof input.marketingConsent !== "boolean") throw new OrderError("Check your email preference.");
+  if (input.marketingConsent === true && !email) throw new OrderError("Enter an email address to opt in to email updates.");
   const prepaid = input.paymentMethod === "easypaisa";
   return {
     request_key: input.requestKey.toLowerCase(),
@@ -133,7 +135,8 @@ function validateOrder(input) {
     notes: field(input.notes ?? "", "delivery note", 0, 500),
     payment_method: input.paymentMethod,
     transaction_id: prepaid ? field(input.transactionId, "transaction ID", 4, 80) : "",
-    status: prepaid ? "pending_verification" : "pending_confirmation"
+    status: prepaid ? "pending_verification" : "pending_confirmation",
+    ...(input.marketingConsent === true ? { marketing_consent: true, marketing_consent_version: "checkout-email-v1" } : {})
   };
 }
 
@@ -225,6 +228,7 @@ function alertBody(order, env) {
     ] : ["Confirm stock and delivery details before dispatch."]),
     "",
     `Review orders (Supabase login required): https://supabase.com/dashboard/project/${ref}/editor`,
+    "Owner workspace: https://www.gumnaamofficial.com/admin",
     "After verification, set payment_status as appropriate and status to confirmed in gumnaam_orders.",
     "Then open this WhatsApp message to confirm manually:",
     whatsapp
@@ -299,7 +303,9 @@ function createOrderHandler(env, fetcher = fetch, background = (task) => task.ca
         const ready = bucket.public === false && deliveryFee === DELIVERY_FEE;
         let cartVersion = 0;
         try { cartVersion = await db("/rest/v1/rpc/gumnaam_cart_version", { method: "POST", body: "{}" }); } catch {}
-        return json({ ready, deliveryFee: DELIVERY_FEE, cartVersion }, ready ? 200 : 503);
+        let ownerVersion = 0;
+        try { ownerVersion = await db("/rest/v1/rpc/gumnaam_owner_version", { method: "POST", body: "{}" }); } catch {}
+        return json({ ready, deliveryFee: DELIVERY_FEE, cartVersion, ownerVersion }, ready ? 200 : 503);
       } catch { return json({ ready: false }, 503); }
     }
     if (request.method !== "POST") return json({ error: "Method not allowed." }, 405);
@@ -324,6 +330,7 @@ function createOrderHandler(env, fetcher = fetch, background = (task) => task.ca
       const hostnames = env.TURNSTILE_HOSTNAMES.split(",").map((item) => item.trim());
       if (!captcha.success || captcha.action !== "checkout" || !hostnames.includes(captcha.hostname)) throw new OrderError("Please complete the security check again.");
       if (order.line_items && await db("/rest/v1/rpc/gumnaam_cart_version", { method: "POST", body: "{}" }) !== 1) throw new OrderError("Bag checkout is not open yet. Use Buy now for one piece or contact us.", 503);
+      if (order.marketing_consent && await db("/rest/v1/rpc/gumnaam_owner_version", { method: "POST", body: "{}" }) !== 1) throw new OrderError("Email preferences are temporarily unavailable. Uncheck email updates and retry your order.", 503);
       let bytes;
       let type;
       const receipt = form.get("receipt");
@@ -353,6 +360,7 @@ function createOrderHandler(env, fetcher = fetch, background = (task) => task.ca
       let rows;
       try {
         const record = { ...order, reference, payload_hash: hash, receipt_path: uploadedPath || null };
+        if (record.marketing_consent) record.marketing_consent_at = new Date().toISOString();
         record.notification_payload = { from: env.ORDER_FROM_EMAIL, to: [env.ORDER_ALERT_EMAIL], subject: `Gumnaam / New order ${reference}`, text: alertBody(record, env) };
         rows = await db("/rest/v1/gumnaam_orders", { method: "POST", headers: { Prefer: "return=representation" }, body: JSON.stringify(record) });
       } catch (error) {

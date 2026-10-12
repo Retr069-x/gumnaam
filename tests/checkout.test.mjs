@@ -111,3 +111,10 @@ test("old backend pricing leaves checkout and Easypaisa transfers disabled", asy
   assert.equal(ui.prepaidOption.disabled, false);
   assert.equal(ui.scripts.length, 1);
 });
+
+test("email preference stays hidden until its server migration is deployed", async () => {
+  const closed = await checkout({ ready: true, deliveryFee: 200, cartVersion: 1 });
+  assert.equal(closed.node("[data-marketing-consent]").hidden, true);
+  const active = await checkout({ ready: true, deliveryFee: 200, cartVersion: 1, ownerVersion: 1 });
+  assert.equal(active.node("[data-marketing-consent]").hidden, false);
+});

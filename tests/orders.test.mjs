@@ -47,6 +47,7 @@ function mockService(options = {}) {
     if (path === "/rest/v1/rpc/gumnaam_check_order_limit") return json(!options.rateLimited);
     if (path === "/rest/v1/rpc/gumnaam_delivery_fee") return options.feeNotConfigured ? json({ error: "Not found" }, 404) : json(200);
     if (path === "/rest/v1/rpc/gumnaam_cart_version") return options.cartNotConfigured ? json({ error: "Not found" }, 404) : json(1);
+    if (path === "/rest/v1/rpc/gumnaam_owner_version") return options.ownerNotConfigured ? json({ error: "Not found" }, 404) : json(1);
     if (path === "/rest/v1/rpc/gumnaam_claim_notifications") {
       const input = JSON.parse(request.body);
       const picked = rows.filter((row) => row.notification_status === "pending" && (!input.order_reference || row.reference === input.order_reference));
@@ -127,7 +128,7 @@ test("unconfigured checkout is closed", async () => {
 test("health checks table and private bucket", async () => {
   const mock = mockService();
   const response = await mock.handler(new Request("https://test.example", { headers: { origin: "https://shop.example" } }));
-  assert.deepEqual(await response.json(), { ready: true, deliveryFee: 200, cartVersion: 1 });
+  assert.deepEqual(await response.json(), { ready: true, deliveryFee: 200, cartVersion: 1, ownerVersion: 1 });
   const bad = mockService({ publicBucket: true });
   assert.equal((await bad.handler(new Request("https://test.example"))).status, 503);
 });
@@ -137,6 +138,35 @@ test("checkout stays closed until the delivery-fee database update is applied", 
   const response = await mock.handler(new Request("https://test.example"));
   assert.equal(response.status, 503);
   assert.deepEqual(await response.json(), { ready: false });
+});
+
+test("owner setup is optional for existing checkout but required for new email opt-ins", async () => {
+  const mock = mockService({ ownerNotConfigured: true });
+  const health = await mock.handler(new Request("https://test.example"));
+  assert.deepEqual(await health.json(), { ready: true, deliveryFee: 200, cartVersion: 1, ownerVersion: 0 });
+  const failed = await mock.handler(request({ email: "buyer@example.com", marketingConsent: true }));
+  assert.equal(failed.status, 503);
+  assert.equal(mock.rows.length, 0);
+  assert.equal((await mock.handler(request())).status, 201);
+  await Promise.all(mock.tasks);
+});
+
+test("email marketing is explicitly optional and never inferred from an email address", async () => {
+  const defaultOrder = validateOrder({ ...base, email: "buyer@example.com" });
+  assert.equal(defaultOrder.marketing_consent, undefined);
+  assert.throws(() => validateOrder({ ...base, marketingConsent: true }));
+  assert.throws(() => validateOrder({ ...base, email: "buyer@example.com", marketingConsent: "true" }));
+  const opted = mockService();
+  const response = await opted.handler(request({ email: "buyer@example.com", marketingConsent: true, marketing_consent_at: "2000-01-01" }));
+  assert.equal(response.status, 201);
+  assert.equal(opted.rows[0].marketing_consent, true);
+  assert.equal(opted.rows[0].marketing_consent_version, "checkout-email-v1");
+  assert.ok(Date.parse(opted.rows[0].marketing_consent_at) > Date.parse("2000-01-01"));
+  assert.ok(opted.rows[0].notification_payload.text.includes("https://www.gumnaamofficial.com/admin"));
+  const duplicate = await opted.handler(request({ email: "buyer@example.com", marketingConsent: true }));
+  assert.equal(duplicate.status, 200);
+  assert.equal(opted.rows.length, 1);
+  await Promise.all(opted.tasks);
 });
 test("disallowed origin and failed CAPTCHA never save orders", async () => {
   const mock = mockService({ badCaptcha: true });
