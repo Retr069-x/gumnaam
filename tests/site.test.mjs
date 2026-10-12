@@ -14,11 +14,20 @@ for (const name of names) test(`${name} has shared navigation, accessible landma
   assert.match(html, /property="og:title"/);
   assert.match(html, /href="about.html"/);
   assert.match(html, /href="contact.html"/);
+  assert.match(html, /family=Anton&/);
   assert.doesNotMatch(html, /Inter:wght|Pakistan, Pakistan|PKR 200 COD/);
   for (const [, value] of html.matchAll(/(?:src|href|srcset)="([^"]+)"/g)) {
     if (/^(?:https?:|mailto:|#)/.test(value)) continue;
     await access(new URL(value.split("?")[0].split("#")[0], root));
   }
+});
+
+test("hero calligraphy is decorative and display headings use Anton", async () => {
+  const html = await readFile(new URL("index.html", root), "utf8");
+  const css = await readFile(new URL("css/style.css", root), "utf8");
+  assert.match(html, /class="hero-watermark"[^>]+alt=""[^>]+aria-hidden="true"/);
+  assert.match(css, /--display: "Anton"/);
+  assert.match(css, /\.hero-watermark\s*\{[^}]+pointer-events: none/);
 });
 test("checkout keeps all submission hooks and private payment requirements", async () => {
   const html = await readFile(new URL("checkout.html", root), "utf8");

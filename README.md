@@ -19,7 +19,7 @@ Visit `http://localhost:8000`. Order submission needs a configured, deployed Sup
 - Photography and logo: `assets/`.
 - Layout: `css/style.css`; checkout: `css/checkout.css`.
 - Public checkout endpoint, CAPTCHA site key, delivery display fee, Easypaisa details, contact email and shared motion values: `js/checkout-config.js`. Never put server keys here. The backend delivery constant remains authoritative; change it and the database readiness function together if pricing changes.
-- Typography, monochrome palette, fluid type and spacing: custom properties in `css/style.css`. Barlow Condensed headlines, DM Sans body, IBM Plex Mono labels. Motion uses 0.8 seconds, power4.out and 0.08-second stagger. The CSS transition ease is cubic-bezier(.76,0,.24,1). Reduced motion disables reveals, loader, wipes, smooth scrolling and marquees.
+- Typography, monochrome palette, fluid type and spacing: custom properties in `css/style.css`. Anton uppercase headlines, DM Sans body, IBM Plex Mono labels. The hero's decorative calligraphy uses `assets/logo.png` with the opacity and placement in `.hero-watermark`. Motion uses 0.8 seconds, power4.out and 0.08-second stagger. The CSS transition ease is cubic-bezier(.76,0,.24,1). Reduced motion disables reveals, loader, wipes, smooth scrolling and marquees.
 
 Every current hoodie is PKR 1,999. Delivery adds PKR 200 once per order for both COD and Easypaisa. One piece totals PKR 2,199; two total PKR 4,198. The Easypaisa transfer amount includes delivery. Buy now carries a selected piece, size and quantity to single-piece checkout. The bag supports multiple pieces and sizes, up to ten total pieces and the catalog's per-product availability limits. These are manual stock limits, not live reservations.
 
