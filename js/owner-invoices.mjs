@@ -1,5 +1,6 @@
 import { INVOICE_HOODIES, INVOICE_METHODS, invoiceTotals } from "./invoice-model.mjs";
 import { money, dateTime } from "./owner-model.mjs";
+import { customerInvoicePDF, INVOICE_CONTACTS } from "./invoice-pdf.mjs";
 
 export function setupInvoices({ api, node, busy, confirmAction, signedIn }) {
   const $ = (selector) => document.querySelector(selector);
@@ -74,7 +75,7 @@ export function setupInvoices({ api, node, busy, confirmAction, signedIn }) {
     paper.append(node("p", `Payment record: ${INVOICE_METHODS[invoice.payment_method]}${invoice.payment_reference ? ` / ${invoice.payment_reference}` : ""}`, "fine-print"));
     if (invoice.notes) paper.append(node("p", invoice.notes, "invoice-public-note"));
     if (invoice.status === "void") paper.append(node("p", `Void reason: ${invoice.void_reason}`, "invoice-public-note"));
-    const footer = node("footer", "", "invoice-paper-footer"); footer.append(node("p", "Thank you for remaining Gumnaam."), node("p", "gumnaamofficialpk@gmail.com / @gumnaamclothingpk", "fine-print"), node("p", "Sales invoice for an in-person purchase. Not a tax invoice. Payment status records the owner's confirmation, not an automatic bank verification.", "fine-print")); paper.append(footer);
+    const footer = node("footer", "", "invoice-paper-footer"); for (const contact of INVOICE_CONTACTS) footer.append(node("p", contact, "fine-print")); paper.append(footer);
     const editor = $("#invoice-payment-editor"); editor.replaceChildren();
     if (invoice.status !== "void") {
       editor.append(node("h2", "Payment record."), node("p", "Record cumulative money actually received. To correct a sale, void and reissue; paid invoices should be voided only after refunding the received amount.", "fine-print"));
@@ -122,7 +123,16 @@ export function setupInvoices({ api, node, busy, confirmAction, signedIn }) {
   $("#invoice-prev").addEventListener("click", () => { offset = Math.max(0, offset - 50); busy(null, $("#invoice-status"), async () => { await load(); $("#invoice-status").textContent = ""; }); });
   $("#invoice-next").addEventListener("click", () => { offset += 50; busy(null, $("#invoice-status"), async () => { await load(); $("#invoice-status").textContent = ""; }); });
   $("#invoice-history").addEventListener("click", (event) => { const button = event.target.closest("[data-invoice-number]"); if (button) open(button.dataset.invoiceNumber); });
-  $("#print-invoice").addEventListener("click", () => { if (current && signedIn()) window.print(); });
+  $("#print-invoice").addEventListener("click", (event) => {
+    if (!current || !signedIn()) return;
+    const invoice = current, epoch = generation;
+    busy(event.currentTarget, $("#invoice-dialog-status"), async () => {
+      const pdf = await customerInvoicePDF(invoice);
+      if (!signedIn() || epoch !== generation || current !== invoice) return;
+      const url = URL.createObjectURL(pdf); const link = node("a"); link.href = url; link.download = `${invoice.number}.pdf`; document.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 30000);
+      $("#invoice-dialog-status").textContent = "Customer PDF downloaded. Print the downloaded PDF, not the admin page.";
+    });
+  });
   window.addEventListener("beforeprint", () => { if (current && signedIn() && $("#invoice-dialog").open) document.body.classList.add("printing-invoice"); });
   window.addEventListener("afterprint", () => { document.body.classList.remove("printing-invoice"); });
   async function updatePayment(voidInvoice = false) {

@@ -87,7 +87,7 @@
         </section>
 
         <section id="invoices-view" hidden aria-labelledby="view-title">
-          <p class="fine-print">For customers buying in person. No delivery fee, no online order alert. Saved sales invoices can be printed or saved as PDF using your browser. Not a tax invoice.</p>
+          <p class="fine-print">For customers buying in person. No delivery fee, no online order alert. Download a customer-only PDF to print, without the admin page URL or workspace heading. Not a tax invoice.</p>
           <div class="metric-grid invoice-metrics" id="invoice-metrics" aria-label="Walk-in invoice totals"></div>
           <div class="invoice-builder">
             <section class="panel">
@@ -138,7 +138,7 @@
     <p class="form-status" id="detail-status" role="status" aria-live="polite"></p>
   </dialog>
   <dialog id="confirm-dialog" aria-labelledby="confirm-title"><h2 id="confirm-title">Confirm this action.</h2><p id="confirm-copy"></p><form method="dialog" class="confirm-buttons"><button class="button" value="cancel">Keep as is</button><button class="button primary" value="confirm">Confirm</button></form></dialog>
-  <dialog id="invoice-dialog" aria-labelledby="invoice-dialog-title"><div class="dialog-heading invoice-controls"><h2 id="invoice-dialog-title">Sales invoice.</h2><div class="detail-actions"><button class="button compact" type="button" id="print-invoice">Print / Save PDF ↓</button><button class="button compact" type="button" data-close="invoice-dialog">Close ×</button></div></div><article id="invoice-paper" class="invoice-paper"></article><section id="invoice-payment-editor" class="panel invoice-controls"></section><p class="form-status invoice-controls" id="invoice-dialog-status" role="status" aria-live="polite"></p></dialog>
+  <dialog id="invoice-dialog" aria-labelledby="invoice-dialog-title"><div class="dialog-heading invoice-controls"><h2 id="invoice-dialog-title">Sales invoice.</h2><div class="detail-actions"><button class="button compact" type="button" id="print-invoice">Download customer PDF ↓</button><button class="button compact" type="button" data-close="invoice-dialog">Close ×</button></div></div><article id="invoice-paper" class="invoice-paper"></article><section id="invoice-payment-editor" class="panel invoice-controls"></section><p class="form-status invoice-controls" id="invoice-dialog-status" role="status" aria-live="polite"></p></dialog>
   <noscript><p class="noscript">JavaScript is required for the private owner workspace. Customer records are never embedded in this page.</p></noscript>
 </body>
 </html>

@@ -4,6 +4,7 @@ import vm from "node:vm";
 import { readFile } from "node:fs/promises";
 import * as model from "../js/owner-model.mjs";
 import * as invoiceModel from "../js/invoice-model.mjs";
+import { INVOICE_CONTACTS } from "../js/invoice-pdf.mjs";
 
 const html = await readFile(new URL("../admin.html", import.meta.url), "utf8");
 const source = (await readFile(new URL("../js/owner.js", import.meta.url), "utf8")).replace(/^import [^\n]+\r?\n/gm, "");
@@ -87,7 +88,7 @@ async function app(options = {}) {
     }
     return new Response(JSON.stringify(result), { status: 200 });
   };
-  vm.runInNewContext(`${invoiceSource}\n${source}`, { ...model, ...invoiceModel, createOwnerAuth: () => auth, window: { GUMNAAM_OWNER: { endpoint: "https://test.supabase.co/functions/v1/owner-api" }, addEventListener: (name, callback) => { windowEvents[name] = callback; }, crypto: { randomUUID: () => '11111111-1111-4111-8111-111111111111' }, print() {} }, document, fetch: fetcher, URL, URLSearchParams, AbortSignal, Intl, Date, setInterval() {}, setTimeout, FormData: class { constructor(form) { this.values = form.all().filter((el) => el.name && !(el.type === "checkbox" && !el.checked)).map((el) => [el.name, el.type === "checkbox" ? "on" : el.value]); } get(key) { return this.values.find(([name]) => name === key)?.[1] ?? null; } [Symbol.iterator]() { return this.values[Symbol.iterator](); } } });
+  vm.runInNewContext(`${invoiceSource}\n${source}`, { ...model, ...invoiceModel, INVOICE_CONTACTS, customerInvoicePDF: async () => new Blob(['test'], { type: 'application/pdf' }), createOwnerAuth: () => auth, window: { GUMNAAM_OWNER: { endpoint: "https://test.supabase.co/functions/v1/owner-api" }, addEventListener: (name, callback) => { windowEvents[name] = callback; }, crypto: { randomUUID: () => '11111111-1111-4111-8111-111111111111' }, print() {} }, document, fetch: fetcher, URL, URLSearchParams, AbortSignal, Intl, Date, setInterval() {}, setTimeout, FormData: class { constructor(form) { this.values = form.all().filter((el) => el.name && !(el.type === "checkbox" && !el.checked)).map((el) => [el.name, el.type === "checkbox" ? "on" : el.value]); } get(key) { return this.values.find(([name]) => name === key)?.[1] ?? null; } [Symbol.iterator]() { return this.values[Symbol.iterator](); } } });
   const click = async (element) => { await document.fire("click", { target: element }); await settle(); };
   const login = async () => { await document.querySelector("#login-form").fire("submit"); await settle(); };
   return { document, requests, click, login, windowEvents };
