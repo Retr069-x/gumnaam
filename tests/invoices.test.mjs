@@ -20,6 +20,10 @@ test("storefront catalogue keeps original IDs and adopts the same hoodie names",
     assert.equal(product.shortName, invoiceProduct.name);
     assert.equal(product.price, invoiceProduct.price);
   }
+  const source = await readFile(new URL("../js/products.js", import.meta.url), "utf8");
+  assert.ok(source.includes('<h3>${product.name}</h3>'));
+  assert.ok(source.includes('${product.colour}<br>Hoodie.'));
+  assert.ok(!source.includes('${product.shortName} / ${product.colour}'));
 });
 test("invoice totals include multiple sizes and discounts, never delivery", () => {
   const lines = [{ productId: "obsidian", size: "M", quantity: 2, unitPrice: 1999 }, { productId: "olive", size: "L", quantity: 1, unitPrice: 1999 }];
