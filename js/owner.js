@@ -40,7 +40,9 @@ async function api(action, params = {}, body, raw = false) {
   const epoch = state.epoch;
   const endpoint = new URL(config.endpoint);
   endpoint.search = new URLSearchParams({ action, ...params });
-  const token = await auth.token();
+  let token;
+  try { token = await auth.token(); }
+  catch (error) { if (state.signedIn) lock("Your session ended. Sign in again."); throw error; }
   if (epoch !== state.epoch) throw new Error("Session ended.");
   const response = await fetch(endpoint, { method: body ? "POST" : "GET", cache: "no-store", credentials: "omit", signal: AbortSignal.timeout(30000), headers: { apikey: config.publishableKey, Authorization: `Bearer ${token}`, ...(body ? { "Content-Type": "application/json" } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
   if (epoch !== state.epoch) throw new Error("Session ended.");

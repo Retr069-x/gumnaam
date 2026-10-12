@@ -140,18 +140,19 @@ returns jsonb language sql stable security invoker set search_path = '' as $$
       count(*) filter (where status = 'cancelled' and payment_status in ('verified', 'collected')) as cancelled_paid,
       count(distinct case when trim(email) <> '' then 'email:' || lower(trim(email)) else 'phone:' || phone end) as customers
     from orders
+  ), chart_end as (
+    select (coalesce(p_until, now()) at time zone 'Asia/Karachi')::date - case when p_until is null then 0 else 1 end as last_day
+  ), chart_range as (
+    select greatest(coalesce((p_from at time zone 'Asia/Karachi')::date, last_day - 29), last_day - 29) as first_day, last_day from chart_end
   ), daily_values as (
     select (created_at at time zone 'Asia/Karachi')::date as day, count(*) as orders,
       coalesce(sum(total) filter (where status = 'completed' and payment_status in ('verified', 'collected')), 0) as revenue
-    from orders where created_at >= greatest(coalesce(p_from, coalesce(p_until, now()) - interval '30 days'), coalesce(p_until, now()) - interval '30 days')
+    from orders where (created_at at time zone 'Asia/Karachi')::date >= (select first_day from chart_range)
     group by day order by day
   ), daily as (
     select calendar.day::date as day, coalesce(daily_values.orders, 0) as orders, coalesce(daily_values.revenue, 0) as revenue
-    from generate_series(
-      (greatest(coalesce(p_from, coalesce(p_until, now()) - interval '30 days'), coalesce(p_until, now()) - interval '30 days') at time zone 'Asia/Karachi')::date::timestamp,
-      ((coalesce(p_until, now()) at time zone 'Asia/Karachi')::date - case when p_until is null then 0 else 1 end)::timestamp,
-      interval '1 day'
-    ) as calendar(day) left join daily_values on daily_values.day = calendar.day::date order by calendar.day
+    from chart_range cross join lateral generate_series(first_day::timestamp, last_day::timestamp, interval '1 day') as calendar(day)
+    left join daily_values on daily_values.day = calendar.day::date order by calendar.day
   ), products as (
     select item->>'product_name' as name, sum((item->>'quantity')::integer) as units,
       sum((item->>'quantity')::integer * (item->>'unit_price')::integer) as value
@@ -162,9 +163,9 @@ returns jsonb language sql stable security invoker set search_path = '' as $$
   ), cities as (
     select city, count(*) as orders from orders group by city order by orders desc, city limit 5
   ) select jsonb_build_object('summary', (select to_jsonb(totals) from totals),
-    'daily', coalesce((select jsonb_agg(to_jsonb(daily)) from daily), '[]'::jsonb),
-    'products', coalesce((select jsonb_agg(to_jsonb(products)) from products), '[]'::jsonb),
-    'cities', coalesce((select jsonb_agg(to_jsonb(cities)) from cities), '[]'::jsonb));
+    'daily', coalesce((select jsonb_agg(to_jsonb(daily) order by day) from daily), '[]'::jsonb),
+    'products', coalesce((select jsonb_agg(to_jsonb(products) order by value desc, name) from products), '[]'::jsonb),
+    'cities', coalesce((select jsonb_agg(to_jsonb(cities) order by orders desc, city) from cities), '[]'::jsonb));
 $$;
 
 create or replace function public.gumnaam_owner_update(

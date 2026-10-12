@@ -137,3 +137,12 @@ test("late responses cannot restore customer data after sign-out", async () => {
   assert.equal(ui.document.querySelector("#order-rows").children.length, 0);
   assert.equal(ui.document.querySelector("#workspace").hidden, true);
 });
+
+test("leaving a page clears records before a back-forward cache restore", async () => {
+  const ui = await app(); await ui.login();
+  ui.windowEvents.pagehide();
+  assert.equal(ui.document.querySelector("#metrics").children.length, 0);
+  assert.equal(ui.document.querySelector("#workspace").hidden, true);
+  ui.windowEvents.pageshow({ persisted: true });
+  assert.match(ui.document.querySelector("#login-status").textContent, /Sign in/);
+});
