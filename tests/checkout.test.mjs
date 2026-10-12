@@ -5,12 +5,12 @@ import vm from "node:vm";
 
 const source = await readFile(new URL("../js/checkout.js", import.meta.url), "utf8");
 
-async function checkout(health = { ready: true, deliveryFee: 200 }) {
+async function checkout(health = { ready: true, deliveryFee: 200 }, cart = null) {
   const nodes = new Map();
   const events = new Map();
   const scripts = [];
   const node = (selector) => {
-    if (!nodes.has(selector)) nodes.set(selector, { textContent: "", hidden: false });
+    if (!nodes.has(selector)) nodes.set(selector, { textContent: "", hidden: false, children: [], replaceChildren() { this.children = []; }, append(child) { this.children.push(child); } });
     return nodes.get(selector);
   };
   const select = (value) => ({
@@ -33,7 +33,8 @@ async function checkout(health = { ready: true, deliveryFee: 200 }) {
   const window = {
     GUMNAAM_PRODUCTS: [{ id: "obsidian", name: "Obsidian Mark Hoodie", price: 1999, stock: 6, sizes: ["S", "M"], images: ["test.jpg"] }],
     GUMNAAM_CHECKOUT: { endpoint: "https://test.supabase.co/functions/v1/create-order", turnstileSiteKey: "test-site-key" },
-    location: { search: "?id=obsidian&size=M" }, crypto: { randomUUID() {} },
+    location: { search: cart ? "?cart=1" : "?id=obsidian&size=M" }, crypto: { randomUUID() {} },
+    GumnaamCart: { get: () => cart || [] },
     addEventListener() {}
   };
   vm.runInNewContext(source, {
@@ -67,6 +68,24 @@ test("checkout and Easypaisa transfer include delivery once, even after switchin
       assert.equal(ui.elements.receipt.required, paymentMethod === "easypaisa");
     }
   }
+});
+
+test("multi-item transfer total includes every size and one delivery fee", async () => {
+  const cart = [{ productId: "obsidian", size: "M", quantity: 1 }, { productId: "obsidian", size: "S", quantity: 2 }];
+  const ui = await checkout({ ready: true, deliveryFee: 200, cartVersion: 1 }, cart);
+  ui.elements.paymentMethod.value = "easypaisa";
+  ui.change();
+  assert.equal(ui.node("#summary-total").textContent, "PKR 6,197");
+  assert.equal(ui.node("[data-payment-total]").textContent, "PKR 6,197");
+  assert.equal(ui.node("#checkout-single").hidden, true);
+  assert.equal(ui.elements.size.disabled, true);
+  assert.equal(ui.node("#summary-lines").children.length, 2);
+});
+test("bag checkout stays closed on the previous live backend", async () => {
+  const ui = await checkout({ ready: true, deliveryFee: 200 }, [{ productId: "obsidian", size: "M", quantity: 1 }]);
+  assert.equal(ui.prepaidOption.disabled, true);
+  assert.equal(ui.submit.disabled, true);
+  assert.match(ui.node("#checkout-status").textContent, /Use Buy now/);
 });
 
 test("invalid quantities never show a payable Easypaisa amount", async () => {

@@ -170,6 +170,7 @@ globalThis.GUMNAAM_PRODUCTS = [
       window.GumnaamReveal?.refresh();
     };
     [sort, size, category].forEach((node) => node.addEventListener("change", update));
+    update();
   }
   document.addEventListener("DOMContentLoaded", () => {
     renderGrids(); renderProductPage(); filters();
