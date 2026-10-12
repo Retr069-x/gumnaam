@@ -5,6 +5,7 @@
   if (!form) return;
   const catalog = window.GUMNAAM_PRODUCTS;
   const config = window.GUMNAAM_CHECKOUT || {};
+  const deliveryFee = 200;
   const productSelect = form.elements.productId;
   const sizeSelect = form.elements.size;
   const submit = form.querySelector('[type="submit"]');
@@ -42,7 +43,7 @@
     const quantity = Number(form.elements.quantity.value);
     const validQuantity = Number.isInteger(quantity) && quantity > 0 && quantity <= Math.min(10, product.stock);
     const prepaid = form.elements.paymentMethod.value === "easypaisa";
-    const fee = prepaid ? 0 : 200;
+    const fee = deliveryFee;
     const subtotal = validQuantity ? quantity * product.price : null;
     document.querySelector("#summary-image").src = product.images[1] || product.images[0];
     document.querySelector("#summary-image").alt = product.name;
@@ -52,8 +53,8 @@
     document.querySelector("#summary-subtotal").textContent = subtotal === null ? "—" : money(subtotal);
     document.querySelector("#summary-fee").textContent = money(fee);
     document.querySelector("#summary-total").textContent = subtotal === null ? "—" : money(subtotal + fee);
-    document.querySelector("[data-payment-total]").textContent = subtotal === null ? "Choose a valid quantity" : money(subtotal);
-    document.querySelector("#summary-payment").textContent = prepaid ? "Transfer the exact total. Your payment is checked manually before confirmation." : "Pay on delivery. PKR 200 COD charge is applied once per order.";
+    document.querySelector("[data-payment-total]").textContent = subtotal === null ? "Choose a valid quantity" : money(subtotal + fee);
+    document.querySelector("#summary-payment").textContent = prepaid ? "Transfer the exact total, including PKR 200 delivery. Your payment is checked manually before confirmation." : "Pay on delivery. PKR 200 delivery is applied once per order.";
     document.querySelector("#easypaisa-panel").hidden = !prepaid;
     for (const field of [form.elements.transactionId, form.elements.receipt]) {
       field.disabled = !prepaid;
@@ -82,6 +83,10 @@
       const response = await fetch(endpoint, { signal: AbortSignal.timeout(10000), cache: "no-store" });
       const health = await response.json();
       if (!response.ok || !health.ready) return unavailable();
+      if (health.deliveryFee !== deliveryFee) {
+        status.textContent = "Checkout is temporarily closed while delivery pricing is updated. Please message us on Instagram. Do not transfer money yet.";
+        return;
+      }
       ready = true;
       form.querySelector('[value="easypaisa"]').disabled = false;
       window.onGumnaamCaptchaReady = () => {

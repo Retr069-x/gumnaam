@@ -45,6 +45,7 @@ function mockService(options = {}) {
       return json([]);
     }
     if (path === "/rest/v1/rpc/gumnaam_check_order_limit") return json(!options.rateLimited);
+    if (path === "/rest/v1/rpc/gumnaam_delivery_fee") return options.feeNotConfigured ? json({ error: "Not found" }, 404) : json(200);
     if (path === "/rest/v1/rpc/gumnaam_claim_notifications") {
       const input = JSON.parse(request.body);
       const picked = rows.filter((row) => row.notification_status === "pending" && (!input.order_reference || row.reference === input.order_reference));
@@ -89,10 +90,14 @@ function request(overrides = {}, receipt, origin = "https://shop.example") {
 test("all pieces are PKR 1,999 and use the same server catalog", () => {
   for (const piece of globalThis.GUMNAAM_PRODUCTS) assert.equal(validateOrder({ ...base, productId: piece.id }).unit_price, 1999);
 });
-test("COD fee is once per order; Easypaisa has no COD fee", () => {
-  assert.equal(validateOrder(base).total, 2199);
-  assert.equal(validateOrder({ ...base, quantity: 2 }).total, 4198);
-  assert.equal(validateOrder({ ...base, quantity: 2, paymentMethod: "easypaisa", transactionId: "TX123456" }).total, 3998);
+test("delivery is PKR 200 once per order for both payment methods", () => {
+  for (const paymentMethod of ["cod", "easypaisa"]) {
+    for (const [quantity, total] of [[1, 2199], [2, 4198], [6, 12194]]) {
+      const order = validateOrder({ ...base, paymentMethod, quantity, transactionId: "TX123456", cod_fee: 0, total: 1 });
+      assert.equal(order.cod_fee, 200);
+      assert.equal(order.total, total);
+    }
+  }
 });
 test("client prices are ignored and Pakistan phone is normalized", () => {
   const order = validateOrder({ ...base, total: 1, unit_price: 1, cod_fee: 0 });
@@ -121,9 +126,16 @@ test("unconfigured checkout is closed", async () => {
 test("health checks table and private bucket", async () => {
   const mock = mockService();
   const response = await mock.handler(new Request("https://test.example", { headers: { origin: "https://shop.example" } }));
-  assert.deepEqual(await response.json(), { ready: true });
+  assert.deepEqual(await response.json(), { ready: true, deliveryFee: 200 });
   const bad = mockService({ publicBucket: true });
   assert.equal((await bad.handler(new Request("https://test.example"))).status, 503);
+});
+
+test("checkout stays closed until the delivery-fee database update is applied", async () => {
+  const mock = mockService({ feeNotConfigured: true });
+  const response = await mock.handler(new Request("https://test.example"));
+  assert.equal(response.status, 503);
+  assert.deepEqual(await response.json(), { ready: false });
 });
 test("disallowed origin and failed CAPTCHA never save orders", async () => {
   const mock = mockService({ badCaptcha: true });
@@ -147,6 +159,8 @@ test("COD persists before notifying and returns no private details", async () =>
   await Promise.all(mock.tasks);
   assert.equal(mock.rows[0].notification_status, "sent");
   assert.match(mock.emails[0].text, /https:\/\/wa.me\/923001234567/);
+  assert.match(mock.emails[0].text, /Delivery: PKR 200/);
+  assert.doesNotMatch(mock.emails[0].text, /COD charge:/);
   assert.equal(mock.uploads.size, 0);
 });
 test("identical retry does not duplicate an order", async () => {
@@ -178,12 +192,15 @@ test("Easypaisa stores private screenshot and awaits verification", async () => 
   const response = await mock.handler(request({ paymentMethod: "easypaisa", transactionId: "TX123456" }, new Blob([png], { type: "image/png" })));
   const result = await response.json();
   assert.equal(response.status, 201);
-  assert.equal(result.total, 1999);
+  assert.equal(result.total, 2199);
+  assert.equal(mock.rows[0].cod_fee, 200);
   assert.equal(result.status, "pending_verification");
   assert.equal(mock.uploads.size, 1);
   assert.match(mock.rows[0].receipt_path, /^[a-f0-9-]+\.png$/);
   await Promise.all(mock.tasks);
   assert.match(mock.emails[0].text, /Supabase login required/);
+  assert.match(mock.emails[0].text, /Delivery: PKR 200/);
+  assert.match(mock.emails[0].text, /Total: PKR 2199/);
   assert.doesNotMatch(mock.emails[0].text, /object\/public/);
 });
 test("simultaneous Easypaisa retries clean up the unused upload", async () => {

@@ -20,11 +20,13 @@ Visit `http://localhost:8000`. Order submission needs a configured, deployed Sup
 - Layout: `css/style.css`; checkout: `css/checkout.css`.
 - Public checkout endpoint and CAPTCHA site key: `js/checkout-config.js`. Never put server keys here.
 
-Every current hoodie is PKR 1,999. COD adds PKR 200 once per order. Easypaisa has no COD fee. Buy now carries the selected piece and size to checkout. Each order is for one style and size; quantity can be changed. There is no multi-item cart.
+Every current hoodie is PKR 1,999. Delivery adds PKR 200 once per order for both COD and Easypaisa. One piece totals PKR 2,199; two total PKR 4,198. The Easypaisa transfer amount includes delivery. Buy now carries the selected piece and size to checkout. Each order is for one style and size; quantity can be changed. There is no multi-item cart.
 
 ## Backend setup
 
 See [Supabase setup](supabase/SETUP.md). It covers private receipts, Resend email alerts, spam protection and notification retries.
+
+For an existing installation, run `supabase/delivery-fee-update.sql` instead of rerunning `schema.sql`, then redeploy the updated dashboard functions. The update preserves old order totals and receipts. The database column `cod_fee` keeps its legacy name but stores delivery for both payment methods. Checkout stays closed against an older backend to prevent mismatched payment amounts.
 
 Screenshots do not automatically verify a transfer. Review actual Easypaisa funds, then confirm the customer manually on WhatsApp. This is manual transfer checkout, not an Easypaisa payment-gateway integration.
 
@@ -33,7 +35,7 @@ Screenshots do not automatically verify a transfer. Review actual Easypaisa fund
 With Node.js 22 or later:
 
 ```sh
-node --test tests/orders.test.mjs tests/dashboard.test.mjs
+node --test tests/*.test.mjs
 ```
 
 The tests use fake services and never contact Supabase, send email or create real orders. They cover pricing, validation, private-file handling, retries and notification failure. Live database access, real email delivery and CAPTCHA still need deployment checks.

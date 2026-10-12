@@ -31,8 +31,8 @@ create table public.gumnaam_orders (
   notification_sent_at timestamptz,
   notification_provider_id text,
   notification_payload jsonb not null,
-  check ((payment_method = 'cod' and cod_fee = 200 and receipt_path is null and transaction_id = '')
-      or (payment_method = 'easypaisa' and cod_fee = 0 and receipt_path is not null and length(transaction_id) between 4 and 80))
+  constraint gumnaam_orders_payment_details_check check ((payment_method = 'cod' and cod_fee = 200 and receipt_path is null and transaction_id = '')
+      or (payment_method = 'easypaisa' and cod_fee in (0, 200) and receipt_path is not null and length(transaction_id) between 4 and 80))
 );
 
 alter table public.gumnaam_orders enable row level security;
@@ -90,5 +90,12 @@ revoke all on function public.gumnaam_check_order_limit(text) from public, anon,
 revoke all on function public.gumnaam_claim_notifications(text, integer) from public, anon, authenticated;
 grant execute on function public.gumnaam_check_order_limit(text) to service_role;
 grant execute on function public.gumnaam_claim_notifications(text, integer) to service_role;
+
+create function public.gumnaam_delivery_fee()
+returns integer language sql immutable security invoker set search_path = '' as $$
+  select 200;
+$$;
+revoke all on function public.gumnaam_delivery_fee() from public, anon, authenticated;
+grant execute on function public.gumnaam_delivery_fee() to service_role;
 
 commit;

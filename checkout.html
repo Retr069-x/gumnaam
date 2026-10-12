@@ -60,12 +60,12 @@
             <fieldset>
               <legend><span>03</span> How you pay</legend>
               <div class="payment-options">
-                <label><input type="radio" name="paymentMethod" value="cod" checked><span>Cash on delivery<small>PKR 200 per order</small></span></label>
-                <label><input type="radio" name="paymentMethod" value="easypaisa" disabled><span>Easypaisa transfer<small>Manual payment verification</small></span></label>
+                <label><input type="radio" name="paymentMethod" value="cod" checked><span>Cash on delivery<small>PKR 200 delivery per order</small></span></label>
+                <label><input type="radio" name="paymentMethod" value="easypaisa" disabled><span>Easypaisa transfer<small>PKR 200 delivery / Manual verification</small></span></label>
               </div>
               <div class="easypaisa-panel" id="easypaisa-panel" hidden>
                 <p class="eyebrow">Transfer only after reviewing your total</p>
-                <dl class="payment-account"><div><dt>Account title</dt><dd>Abdul Muneeb</dd></div><div><dt>Account number</dt><dd>03041149722</dd></div><div><dt>Amount</dt><dd data-payment-total>PKR 1,999</dd></div></dl>
+                <dl class="payment-account"><div><dt>Account title</dt><dd>Abdul Muneeb</dd></div><div><dt>Account number</dt><dd>03041149722</dd></div><div><dt>Amount including delivery</dt><dd data-payment-total>PKR 2,199</dd></div></dl>
                 <p class="checkout-note">This is a bank-wallet transfer, not an automatic payment gateway. A screenshot is proof submitted for review, not payment confirmation.</p>
                 <label class="checkout-field">Transaction ID<input name="transactionId" maxlength="80" minlength="4" disabled></label>
                 <label class="checkout-field">Payment screenshot<input name="receipt" type="file" accept="image/jpeg,image/png,image/webp" aria-describedby="receipt-note" disabled></label>
@@ -84,8 +84,8 @@
             <img id="summary-image" src="assets/black-front.jpg" alt="Obsidian Mark Hoodie" width="600" height="600">
             <h2 id="summary-name">Obsidian Mark Hoodie</h2>
             <p id="summary-size">Choose your size</p>
-            <dl class="order-totals"><div><dt>Pieces <span id="summary-quantity">/ 1</span></dt><dd id="summary-subtotal">PKR 1,999</dd></div><div><dt>COD charge</dt><dd id="summary-fee">PKR 200</dd></div><div class="order-total"><dt>Total</dt><dd id="summary-total">PKR 2,199</dd></div></dl>
-            <p class="checkout-note" id="summary-payment">Pay on delivery. PKR 200 COD charge is applied once per order.</p>
+            <dl class="order-totals"><div><dt>Pieces <span id="summary-quantity">/ 1</span></dt><dd id="summary-subtotal">PKR 1,999</dd></div><div><dt>Delivery</dt><dd id="summary-fee">PKR 200</dd></div><div class="order-total"><dt>Total</dt><dd id="summary-total">PKR 2,199</dd></div></dl>
+            <p class="checkout-note" id="summary-payment">Pay on delivery. PKR 200 delivery is applied once per order.</p>
             <p class="checkout-note">Delivery within Pakistan. We’ll confirm availability and dispatch on WhatsApp.</p>
           </aside>
         </div>

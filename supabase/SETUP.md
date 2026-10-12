@@ -61,7 +61,15 @@ Use the generated standalone files in `supabase/dashboard/`, not the short impor
 
 After edits to the catalog or backend, regenerate both copies using `node scripts/package-dashboard-functions.mjs`, run the tests and redeploy both functions. Do not edit generated dashboard copies directly.
 
-The storefront endpoint is `https://mcpzozjhjbjgeaaszdhl.supabase.co/functions/v1/create-order`. Its public Turnstile site key has been configured. It remains closed when backend readiness checks fail.
+The storefront endpoint is `https://mcpzozjhjbjgeaaszdhl.supabase.co/functions/v1/create-order`. Its public Turnstile site key has been configured. It remains closed when backend readiness checks fail or the deployed delivery fee differs from the storefront.
+
+### Delivery-fee update for an existing installation
+
+Run `delivery-fee-update.sql` in the SQL Editor, not `schema.sql`. It replaces only the payment-details check and adds the service-only `gumnaam_delivery_fee()` readiness function. It leaves existing orders, totals, receipts, access rules and notification snapshots unchanged. If it cannot identify exactly one expected payment-details check, it stops without applying changes.
+
+The existing `cod_fee` column keeps its name for compatibility and records PKR 200 delivery for every new order, COD or Easypaisa. The check accepts zero only for compatibility with historical prepaid orders; the server always calculates PKR 200 for new submissions. Do not reprice historical orders or edit their stored notification payloads.
+
+Regenerate and redeploy both dashboard functions after applying the database update. Then publish the static checkout changes. The updated frontend will not enable checkout against an older backend that does not report `deliveryFee: 200`. Close any checkout tabs opened before this change and reload before testing.
 
 ### Connected deployment tool or CLI
 
@@ -90,9 +98,9 @@ Monitor rows with `notification_status = failed` or a long-expired `sending` lea
 
 Before taking customer payments:
 
-1. Confirm `GET create-order` reports `ready: true` from the storefront origin.
+1. Confirm `GET create-order` reports `ready: true` and `deliveryFee: 200` from the storefront origin.
 2. Place a clearly labelled test COD order. Check the database total is PKR 2,199 for one piece and PKR 4,198 for two. Verify the merchant email arrives on your phone.
-3. Submit a test Easypaisa order with a harmless test image and transaction label, without a real payment. Confirm PKR 1,999 total, a private receipt and `pending_verification`. Never treat this test screenshot as paid.
+3. Submit a test Easypaisa order with a harmless test image and transaction label, without a real payment. Confirm PKR 2,199 total for one piece or PKR 4,198 for two, the matching transfer amount including delivery, a private receipt and `pending_verification`. Never treat this test screenshot as paid.
 4. With a publishable/anon key, confirm direct reads and inserts on both Gumnaam tables are denied. Confirm unauthenticated receipt downloads fail.
 5. Confirm the retry worker returns 401 without the cron secret and Cron is invoking it successfully. Simulate an email-provider failure in a test project and verify the order survives and alerts recover.
 6. Retry the same submission and confirm no duplicate row. Check mobile layout and keyboard navigation. Run Supabase security advisors.

@@ -80,6 +80,7 @@ globalThis.GUMNAAM_PRODUCTS = [
 ];
 
 const MAX_RECEIPT_BYTES = 4194304;
+const DELIVERY_FEE = 200;
 const MAX_REQUEST_BYTES = MAX_RECEIPT_BYTES + 32768;
 const catalog = globalThis.GUMNAAM_PRODUCTS;
 
@@ -114,8 +115,8 @@ function validateOrder(input) {
     size: input.size,
     quantity: input.quantity,
     unit_price: product.price,
-    cod_fee: prepaid ? 0 : 200,
-    total: product.price * input.quantity + (prepaid ? 0 : 200),
+    cod_fee: DELIVERY_FEE,
+    total: product.price * input.quantity + DELIVERY_FEE,
     customer_name: field(input.customerName, "name", 2, 100),
     phone: rawPhone.startsWith("0") ? `92${rawPhone.slice(1)}` : rawPhone,
     city: field(input.city, "city", 2, 80),
@@ -175,7 +176,7 @@ function alertBody(order, env) {
     "",
     `${order.product_name} / ${order.size} / quantity ${order.quantity}`,
     `Pieces: PKR ${order.unit_price * order.quantity}`,
-    `COD charge: PKR ${order.cod_fee}`,
+    `Delivery: PKR ${order.cod_fee}`,
     `Total: PKR ${order.total}`,
     `Payment method: ${order.payment_method}`,
     "Status: new order request — NOT automatically confirmed",
@@ -264,8 +265,10 @@ function createOrderHandler(env, fetcher = fetch, background = (task) => task.ca
       try {
         const db = service(env, fetcher);
         await db("/rest/v1/gumnaam_orders?select=id&limit=0");
+        const deliveryFee = await db("/rest/v1/rpc/gumnaam_delivery_fee", { method: "POST", body: "{}" });
         const bucket = await db("/storage/v1/bucket/payment-receipts");
-        return json({ ready: bucket.public === false }, bucket.public === false ? 200 : 503);
+        const ready = bucket.public === false && deliveryFee === DELIVERY_FEE;
+        return json({ ready, deliveryFee: DELIVERY_FEE }, ready ? 200 : 503);
       } catch { return json({ ready: false }, 503); }
     }
     if (request.method !== "POST") return json({ error: "Method not allowed." }, 405);
