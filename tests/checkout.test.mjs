@@ -33,12 +33,14 @@ async function checkout(health = { ready: true, deliveryFee: 200 }) {
   const window = {
     GUMNAAM_PRODUCTS: [{ id: "obsidian", name: "Obsidian Mark Hoodie", price: 1999, stock: 6, sizes: ["S", "M"], images: ["test.jpg"] }],
     GUMNAAM_CHECKOUT: { endpoint: "https://test.supabase.co/functions/v1/create-order", turnstileSiteKey: "test-site-key" },
-    location: { search: "?id=obsidian&size=M" }, crypto: { randomUUID() {} }
+    location: { search: "?id=obsidian&size=M" }, crypto: { randomUUID() {} },
+    addEventListener() {}
   };
   vm.runInNewContext(source, {
     window,
     document: {
       querySelector: (selector) => selector === "#checkout-form" ? form : node(selector),
+      addEventListener(name, callback) { if (name === "DOMContentLoaded") queueMicrotask(callback); },
       createElement: () => ({}), head: { append: (script) => scripts.push(script) }
     },
     Option: class { constructor(text, value) { this.text = text; this.value = value; } },

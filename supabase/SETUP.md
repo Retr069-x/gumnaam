@@ -83,6 +83,14 @@ Set the public `endpoint` in `js/checkout-config.js` to `https://YOUR_PROJECT_RE
 
 ## 6. Retry email alerts
 
+### Multi-item update
+
+On an existing configured project, run `cart-update.sql` once in the SQL Editor. It adds nullable `line_items` and `subtotal` columns, adjusts the total constraint to use subtotal when present, and adds a service-role-only `gumnaam_cart_version()` readiness function. Historical order data and alert snapshots remain unchanged. Do not rerun `schema.sql`.
+
+Redeploy the regenerated dashboard copies of both functions. `GET create-order` then reports `cartVersion: 1`. The new bag checkout stays closed until that capability is reported, while legacy single-item checkout remains compatible. Test two different products/sizes with both payment methods, one PKR 200 delivery fee, correct email line items, private receipt storage and identical-retry protection. Do not send real payment for a test.
+
+For multi-item orders, fulfil from `line_items` and the full email summary. The old header columns are retained for compatibility: `product_id` refers to the first sorted selection, `quantity` is the aggregate and `size` is Mixed when several lines are present. `subtotal` records the actual sum even if product prices differ.
+
 Enable Supabase Cron (`pg_cron`) and `pg_net` in the dashboard. In Vault, create:
 
 - `gumnaam_project_url`: your `https://YOUR_PROJECT_REF.supabase.co` URL.

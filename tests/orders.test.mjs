@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import vm from "node:vm";
-import { createOrderHandler, validateOrder, imageType, notifyOrders, MAX_RECEIPT_BYTES } from "../supabase/functions/_shared/orders.mjs";
+import { createOrderHandler, validateOrder, validateCartOrder, imageType, notifyOrders, MAX_RECEIPT_BYTES } from "../supabase/functions/_shared/orders.mjs";
 
 const base = {
   productId: "obsidian", size: "M", quantity: 1,
@@ -46,6 +46,7 @@ function mockService(options = {}) {
     }
     if (path === "/rest/v1/rpc/gumnaam_check_order_limit") return json(!options.rateLimited);
     if (path === "/rest/v1/rpc/gumnaam_delivery_fee") return options.feeNotConfigured ? json({ error: "Not found" }, 404) : json(200);
+    if (path === "/rest/v1/rpc/gumnaam_cart_version") return options.cartNotConfigured ? json({ error: "Not found" }, 404) : json(1);
     if (path === "/rest/v1/rpc/gumnaam_claim_notifications") {
       const input = JSON.parse(request.body);
       const picked = rows.filter((row) => row.notification_status === "pending" && (!input.order_reference || row.reference === input.order_reference));
@@ -126,7 +127,7 @@ test("unconfigured checkout is closed", async () => {
 test("health checks table and private bucket", async () => {
   const mock = mockService();
   const response = await mock.handler(new Request("https://test.example", { headers: { origin: "https://shop.example" } }));
-  assert.deepEqual(await response.json(), { ready: true, deliveryFee: 200 });
+  assert.deepEqual(await response.json(), { ready: true, deliveryFee: 200, cartVersion: 1 });
   const bad = mockService({ publicBucket: true });
   assert.equal((await bad.handler(new Request("https://test.example"))).status, 503);
 });
@@ -249,4 +250,57 @@ test("browser scripts parse without a build tool", async () => {
   for (const file of ["products.js", "main.js", "checkout.js", "checkout-config.js"]) {
     new vm.Script(await readFile(new URL(`../js/${file}`, import.meta.url), "utf8"), { filename: file });
   }
+});
+
+test("multi-item pricing is server-derived for both payment methods", () => {
+  for (const paymentMethod of ["cod", "easypaisa"]) {
+    const order = validateCartOrder({ ...base, paymentMethod, transactionId: "TEST-ONLY", total: 1, items: [{ productId: "obsidian", size: "M", quantity: 1, price: 1 }, { productId: "camel", size: "L", quantity: 2 }] });
+    assert.equal(order.subtotal, 5997);
+    assert.equal(order.total, 6197);
+    assert.equal(order.cod_fee, 200);
+    assert.equal(order.quantity, 3);
+    assert.equal(order.line_items.length, 2);
+  }
+});
+test("multi-item checkout rejects duplicate lines, aggregate overstock and more than ten pieces", () => {
+  for (const items of [
+    [], [null], [{ productId: "fake", size: "M", quantity: 1 }],
+    [{ productId: "obsidian", size: "M", quantity: 1 }, { productId: "obsidian", size: "M", quantity: 1 }],
+    [{ productId: "obsidian", size: "M", quantity: 4 }, { productId: "obsidian", size: "L", quantity: 4 }],
+    [{ productId: "obsidian", size: "M", quantity: 6 }, { productId: "navy", size: "L", quantity: 6 }]
+  ]) assert.throws(() => validateCartOrder({ ...base, items }));
+});
+test("multi-item COD and Easypaisa persist all lines and email the complete summary", async () => {
+  for (const paymentMethod of ["cod", "easypaisa"]) {
+    const mock = mockService();
+    const response = await mock.handler(request({ paymentMethod, transactionId: "TEST-ONLY", items: [{ productId: "obsidian", size: "M", quantity: 1 }, { productId: "camel", size: "L", quantity: 1 }] }, paymentMethod === "easypaisa" ? new Blob([png], { type: "image/png" }) : null));
+    assert.equal(response.status, 201);
+    assert.equal((await response.json()).total, 4198);
+    assert.equal(mock.rows[0].line_items.length, 2);
+    await Promise.all(mock.tasks);
+    assert.match(mock.emails[0].text, /Obsidian Mark Hoodie \/ M \/ quantity 1/);
+    assert.match(mock.emails[0].text, /Dune Script Hoodie \/ L \/ quantity 1/);
+    assert.match(mock.emails[0].text, /Delivery: PKR 200/);
+    assert.match(mock.emails[0].text, /Total: PKR 4198/);
+  }
+});
+test("cart database update is optional for legacy single-piece orders", async () => {
+  const mock = mockService({ cartNotConfigured: true });
+  const health = await (await mock.handler(new Request("https://test.example"))).json();
+  assert.equal(health.ready, true);
+  assert.equal(health.cartVersion, 0);
+  assert.equal((await mock.handler(request())).status, 201);
+  await Promise.all(mock.tasks);
+  const missing = await mock.handler(request({ requestKey: "22222222-2222-4222-8222-222222222222", items: [{ productId: "camel", size: "M", quantity: 1 }] }));
+  assert.equal(missing.status, 503);
+  assert.equal(mock.rows.length, 1);
+});
+test("cart retry order is stable even when line ordering changes", async () => {
+  const mock = mockService();
+  const items = [{ productId: "obsidian", size: "M", quantity: 1 }, { productId: "camel", size: "L", quantity: 1 }];
+  const first = await (await mock.handler(request({ items }))).json();
+  const retry = await (await mock.handler(request({ items: [...items].reverse() }))).json();
+  assert.equal(first.reference, retry.reference);
+  assert.equal(mock.rows.length, 1);
+  await Promise.all(mock.tasks);
 });

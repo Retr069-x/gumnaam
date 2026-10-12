@@ -1,11 +1,11 @@
-(function checkout() {
+document.addEventListener("DOMContentLoaded", function checkout() {
   "use strict";
 
   const form = document.querySelector("#checkout-form");
   if (!form) return;
   const catalog = window.GUMNAAM_PRODUCTS;
   const config = window.GUMNAAM_CHECKOUT || {};
-  const deliveryFee = 200;
+  const deliveryFee = config.deliveryFee || 200;
   const productSelect = form.elements.productId;
   const sizeSelect = form.elements.size;
   const submit = form.querySelector('[type="submit"]');
@@ -24,6 +24,9 @@
     productSelect.add(new Option(product.name, product.id));
   }
   const params = new URLSearchParams(window.location.search);
+  const cartMode = params.get("cart") === "1";
+  let cartLines = cartMode ? window.GumnaamCart?.get() || [] : [];
+  if (params.has("quantity")) form.elements.quantity.value = params.get("quantity");
   if (catalog.some((product) => product.id === params.get("id"))) productSelect.value = params.get("id");
 
   function piece() {
@@ -40,11 +43,29 @@
 
   function update() {
     const product = piece();
-    const quantity = Number(form.elements.quantity.value);
-    const validQuantity = Number.isInteger(quantity) && quantity > 0 && quantity <= Math.min(10, product.stock);
+    const quantity = cartMode ? cartLines.reduce((sum, line) => sum + line.quantity, 0) : Number(form.elements.quantity.value);
+    const validQuantity = cartMode ? cartLines.length > 0 && quantity <= 10 : Number.isInteger(quantity) && quantity > 0 && quantity <= Math.min(10, product.stock);
     const prepaid = form.elements.paymentMethod.value === "easypaisa";
     const fee = deliveryFee;
-    const subtotal = validQuantity ? quantity * product.price : null;
+    const subtotal = validQuantity ? (cartMode ? cartLines.reduce((sum, line) => sum + catalog.find((entry) => entry.id === line.productId).price * line.quantity, 0) : quantity * product.price) : null;
+    if (cartMode) {
+      document.querySelector("#checkout-single").hidden = true;
+      document.querySelector("#checkout-cart").hidden = false;
+      document.querySelector("#summary-lines").hidden = false;
+      for (const field of [productSelect, sizeSelect, form.elements.quantity]) { field.disabled = true; field.required = false; }
+      for (const selector of ["#summary-image", "#summary-name", "#summary-size"]) document.querySelector(selector).hidden = true;
+      for (const selector of ["#checkout-cart", "#summary-lines"]) {
+        const node = document.querySelector(selector);
+        node.replaceChildren();
+        for (const line of cartLines) {
+          const entry = catalog.find((item) => item.id === line.productId);
+          const row = document.createElement("p");
+          row.textContent = `${entry.name} / ${line.size} / ${line.quantity} — ${money(entry.price * line.quantity)}`;
+          node.append(row);
+        }
+        if (!cartLines.length) { const empty = document.createElement("p"); empty.textContent = "Your bag is empty. Add a piece before checkout."; node.append(empty); }
+      }
+    }
     document.querySelector("#summary-image").src = product.images[1] || product.images[0];
     document.querySelector("#summary-image").alt = product.name;
     document.querySelector("#summary-name").textContent = product.name;
@@ -60,7 +81,7 @@
       field.disabled = !prepaid;
       field.required = prepaid;
     }
-    submit.disabled = !ready || busy || completed || !captchaToken;
+    submit.disabled = !ready || busy || completed || !captchaToken || !validQuantity;
   }
 
   productSelect.addEventListener("change", () => { fillSizes(); update(); });
@@ -68,6 +89,12 @@
   form.addEventListener("change", update);
   fillSizes(params.get("size"));
   update();
+  window.addEventListener("gumnaam:cart", () => {
+    if (!cartMode || busy || completed) return;
+    cartLines = window.GumnaamCart.get();
+    requestKey = undefined;
+    update();
+  });
 
   function unavailable() {
     ready = false;
@@ -85,6 +112,10 @@
       if (!response.ok || !health.ready) return unavailable();
       if (health.deliveryFee !== deliveryFee) {
         status.textContent = "Checkout is temporarily closed while delivery pricing is updated. Please message us on Instagram. Do not transfer money yet.";
+        return;
+      }
+      if (cartMode && health.cartVersion !== 1) {
+        status.textContent = "Bag checkout is being prepared. Use Buy now on a product page for one piece, or message us on Instagram. Do not transfer money for this bag yet.";
         return;
       }
       ready = true;
@@ -134,6 +165,8 @@
       transactionId: prepaid ? form.elements.transactionId.value.trim() : "",
       consent: form.elements.consent.checked
     };
+    const submittedLines = cartMode ? cartLines.map((line) => ({ ...line })) : [{ productId: order.productId, size: order.size, quantity: order.quantity }];
+    if (cartMode) order.items = submittedLines;
     const signature = JSON.stringify(order) + (receipt ? `${receipt.name}:${receipt.size}:${receipt.lastModified}` : "");
     if (!requestKey || signature !== lastPayload) requestKey = window.crypto.randomUUID();
     lastPayload = signature;
@@ -153,6 +186,8 @@
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Your order could not be submitted. Please retry.");
       if (!/^GM-[A-F0-9]{16}$/.test(result.reference) || !Number.isInteger(result.total)) throw new Error("The server response could not be verified. Please retry using the same details.");
+      const expectedTotal = submittedLines.reduce((sum, line) => sum + catalog.find((entry) => entry.id === line.productId).price * line.quantity, 0) + deliveryFee;
+      if (result.total !== expectedTotal) throw new Error("The server total differs from the displayed total. Keep your reference and contact Gumnaam before paying or retrying.");
       completed = true;
       document.querySelector("[data-checkout-layout]").hidden = true;
       const panel = document.querySelector("#order-result");
@@ -162,6 +197,15 @@
       panel.hidden = false;
       panel.focus();
       panel.scrollIntoView({ behavior: "instant", block: "start" });
+      if (cartMode) window.GumnaamCart?.purchased(submittedLines);
+      try {
+        sessionStorage.setItem("gumnaam-confirmation", JSON.stringify({ reference: result.reference, total: result.total, createdAt: Date.now(), lines: submittedLines.map((line) => ({ name: catalog.find((entry) => entry.id === line.productId).name, size: line.size, quantity: line.quantity })) }));
+        const link = document.createElement("a");
+        link.href = "confirmation.html";
+        link.className = "text-link";
+        link.textContent = "View order summary ↗";
+        panel.append(link);
+      } catch {}
       form.reset();
     } catch (error) {
       status.textContent = error.name === "TimeoutError" || error.name === "TypeError" ? "We could not verify the response. Retry with the same details to avoid a duplicate order. Do not transfer again." : error.message;
@@ -176,4 +220,4 @@
 
   form.elements.phone.addEventListener("input", () => form.elements.phone.setCustomValidity(""));
   setup();
-})();
+});

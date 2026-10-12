@@ -57,6 +57,27 @@ export function imageType(bytes) {
   throw new OrderError("The screenshot must be a JPG, PNG or WebP image.");
 }
 
+export function validateCartOrder(input) {
+  if (!Array.isArray(input?.items) || !input.items.length || input.items.length > 10) throw new OrderError("Choose between one and ten pieces.");
+  const keys = new Set();
+  const quantities = new Map();
+  const items = input.items.map((line) => {
+    if (!line || typeof line !== "object") throw new OrderError("Check your pieces.");
+    const order = validateOrder({ ...input, productId: line.productId, size: line.size, quantity: line.quantity });
+    const key = `${order.product_id}:${order.size}`;
+    if (keys.has(key)) throw new OrderError("Combine duplicate piece and size selections.");
+    keys.add(key);
+    quantities.set(order.product_id, (quantities.get(order.product_id) || 0) + order.quantity);
+    if (quantities.get(order.product_id) > catalog.find((product) => product.id === order.product_id).stock) throw new OrderError("Choose an available quantity.");
+    return { product_id: order.product_id, product_name: order.product_name, size: order.size, quantity: order.quantity, unit_price: order.unit_price };
+  }).sort((a, b) => `${a.product_id}:${a.size}`.localeCompare(`${b.product_id}:${b.size}`));
+  const quantity = items.reduce((sum, line) => sum + line.quantity, 0);
+  if (quantity > 10) throw new OrderError("Up to ten pieces per order.");
+  const subtotal = items.reduce((sum, line) => sum + line.unit_price * line.quantity, 0);
+  const first = validateOrder({ ...input, productId: items[0].product_id, size: items[0].size, quantity: items[0].quantity });
+  return { ...first, product_name: items.length > 1 ? `Drop 001 / ${items.length} selections` : first.product_name, size: items.length > 1 ? "Mixed" : first.size, quantity, subtotal, line_items: items, total: subtotal + DELIVERY_FEE };
+}
+
 export async function digest(value) {
   const bytes = typeof value === "string" ? new TextEncoder().encode(value) : value;
   const hash = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
@@ -95,8 +116,8 @@ function alertBody(order, env) {
   return [
     `New Gumnaam order: ${order.reference}`,
     "",
-    `${order.product_name} / ${order.size} / quantity ${order.quantity}`,
-    `Pieces: PKR ${order.unit_price * order.quantity}`,
+    ...(order.line_items ? order.line_items.map((line) => `${line.product_name} / ${line.size} / quantity ${line.quantity} / PKR ${line.unit_price * line.quantity}`) : [`${order.product_name} / ${order.size} / quantity ${order.quantity}`]),
+    `Pieces: PKR ${order.subtotal ?? order.unit_price * order.quantity}`,
     `Delivery: PKR ${order.cod_fee}`,
     `Total: PKR ${order.total}`,
     `Payment method: ${order.payment_method}`,
@@ -189,7 +210,9 @@ export function createOrderHandler(env, fetcher = fetch, background = (task) => 
         const deliveryFee = await db("/rest/v1/rpc/gumnaam_delivery_fee", { method: "POST", body: "{}" });
         const bucket = await db("/storage/v1/bucket/payment-receipts");
         const ready = bucket.public === false && deliveryFee === DELIVERY_FEE;
-        return json({ ready, deliveryFee: DELIVERY_FEE }, ready ? 200 : 503);
+        let cartVersion = 0;
+        try { cartVersion = await db("/rest/v1/rpc/gumnaam_cart_version", { method: "POST", body: "{}" }); } catch {}
+        return json({ ready, deliveryFee: DELIVERY_FEE, cartVersion }, ready ? 200 : 503);
       } catch { return json({ ready: false }, 503); }
     }
     if (request.method !== "POST") return json({ error: "Method not allowed." }, 405);
@@ -203,7 +226,7 @@ export function createOrderHandler(env, fetcher = fetch, background = (task) => 
       if (typeof encoded !== "string" || encoded.length > 12000) throw new OrderError("Check your order details.");
       let input;
       try { input = JSON.parse(encoded); } catch { throw new OrderError("Check your order details."); }
-      const order = validateOrder(input);
+      const order = input?.items !== undefined ? validateCartOrder(input) : validateOrder(input);
       const token = field(form.get("token"), "security check", 1, 2048);
       const captchaResponse = await fetcher("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
         method: "POST", signal: AbortSignal.timeout(10000), headers: { "Content-Type": "application/json" },
@@ -213,6 +236,7 @@ export function createOrderHandler(env, fetcher = fetch, background = (task) => 
       const captcha = await captchaResponse.json();
       const hostnames = env.TURNSTILE_HOSTNAMES.split(",").map((item) => item.trim());
       if (!captcha.success || captcha.action !== "checkout" || !hostnames.includes(captcha.hostname)) throw new OrderError("Please complete the security check again.");
+      if (order.line_items && await db("/rest/v1/rpc/gumnaam_cart_version", { method: "POST", body: "{}" }) !== 1) throw new OrderError("Bag checkout is not open yet. Use Buy now for one piece or contact us.", 503);
       let bytes;
       let type;
       const receipt = form.get("receipt");

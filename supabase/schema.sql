@@ -12,7 +12,9 @@ create table public.gumnaam_orders (
   quantity integer not null check (quantity between 1 and 10),
   unit_price integer not null check (unit_price > 0),
   cod_fee integer not null check (cod_fee in (0, 200)),
-  total integer not null check (total = unit_price * quantity + cod_fee),
+  subtotal integer,
+  line_items jsonb,
+  total integer not null check (total = coalesce(subtotal, unit_price * quantity) + cod_fee),
   customer_name text not null check (length(customer_name) between 2 and 100),
   phone text not null check (phone ~ '^923[0-9]{9}$'),
   city text not null check (length(city) between 2 and 80),
@@ -97,5 +99,16 @@ returns integer language sql immutable security invoker set search_path = '' as 
 $$;
 revoke all on function public.gumnaam_delivery_fee() from public, anon, authenticated;
 grant execute on function public.gumnaam_delivery_fee() to service_role;
+
+alter table public.gumnaam_orders add constraint gumnaam_orders_cart_check
+  check ((line_items is null and subtotal is null)
+      or (line_items is not null and subtotal is not null and subtotal > 0
+          and jsonb_typeof(line_items) = 'array' and jsonb_array_length(line_items) between 1 and 10));
+create function public.gumnaam_cart_version()
+returns integer language sql immutable security invoker set search_path = '' as $$
+  select 1;
+$$;
+revoke all on function public.gumnaam_cart_version() from public, anon, authenticated;
+grant execute on function public.gumnaam_cart_version() to service_role;
 
 commit;
