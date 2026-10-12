@@ -216,9 +216,11 @@ test("owner bundle is standalone, source-matched and closed without configuratio
   const root = new URL("../", import.meta.url);
   const source = await readFile(new URL("supabase/dashboard/owner-api.ts", root), "utf8");
   const model = (await readFile(new URL("js/owner-model.mjs", root), "utf8")).replace(/^export /gm, "").trim();
-  const shared = (await readFile(new URL("supabase/functions/_shared/owner.mjs", root), "utf8")).replace(/^import [^\n]+\r?\n/, "").replace(/^export /gm, "").trim();
+  const invoiceModel = (await readFile(new URL("js/invoice-model.mjs", root), "utf8")).replace(/^export /gm, "").trim();
+  const invoiceShared = (await readFile(new URL("supabase/functions/_shared/invoices.mjs", root), "utf8")).replace(/^import [^\n]+\r?\n/gm, "").replace(/^export /gm, "").trim();
+  const shared = (await readFile(new URL("supabase/functions/_shared/owner.mjs", root), "utf8")).replace(/^import [^\n]+\r?\n/gm, "").replace(/^export /gm, "").trim();
   const entry = (await readFile(new URL("supabase/functions/owner-api/index.ts", root), "utf8")).replace(/^import [^\n]+\r?\n/, "").trim();
-  assert.equal(source, `${model}\n\n${shared}\n\n${entry}\n`);
+  assert.equal(source, `${model}\n\n${invoiceModel}\n\n${invoiceShared}\n\n${shared}\n\n${entry}\n`);
   let handler;
   vm.runInNewContext(source, { Deno: { env: { toObject: () => ({}) }, serve(value) { handler = value; } }, fetch, Request, Response, URL, URLSearchParams, AbortSignal, Blob, atob });
   assert.equal((await handler(new Request("https://test.example"))).status, 503);

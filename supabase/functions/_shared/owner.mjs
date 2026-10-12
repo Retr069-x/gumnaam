@@ -1,4 +1,5 @@
 import { toCSV, pakistanRange, STATUS_LABELS } from "../../../js/owner-model.mjs";
+import { validateInvoice, invoiceHash } from "./invoices.mjs";
 
 export class OwnerError extends Error {
   constructor(message, status = 400, code = "") { super(message); this.status = status; this.code = code; }
@@ -151,10 +152,32 @@ export function createOwnerHandler(env, fetcher = fetch) {
           if (typeof signedPath !== "string" || !signedPath.startsWith("/object/sign/payment-receipts/")) throw new OwnerError("Private receipt preview is unavailable.", 503);
           return json({ url: `${env.SUPABASE_URL}/storage/v1${signedPath}`, expiresIn: 60 });
         }
-        if (action === "audit") return json({ rows: await db("/rest/v1/gumnaam_owner_audit?select=created_at,order_reference,action,reason&order=created_at.desc,id.desc&limit=50") });
+        if (action === "audit") return json({ rows: await db("/rest/v1/gumnaam_owner_audit?select=created_at,order_reference,action,after_value,reason&order=created_at.desc,id.desc&limit=50") });
+        if (action === "invoices") {
+          const filter = ownerFilters(params);
+          const status = params.get("invoiceStatus") || "";
+          if (status && !["issued", "void"].includes(status)) throw new OwnerError("Choose a valid invoice status.");
+          return json(await rpc("gumnaam_invoice_list", { p_query: filter.p_query, p_status: status, p_offset: filter.p_offset, p_limit: filter.p_limit }));
+        }
+        if (action === "invoice") {
+          const number = params.get("number");
+          if (!/^GINV-\d{4}-\d{6,20}$/.test(number || "")) throw new OwnerError("Choose a valid invoice.");
+          const rows = await db(`/rest/v1/gumnaam_invoices?number=eq.${number}&select=number,created_at,updated_at,customer_name,email,phone,line_items,subtotal,discount,total,amount_paid,refunded_amount,payment_method,payment_reference,notes,status,void_reason,version&limit=1`);
+          if (!rows.length) throw new OwnerError("Invoice not found.", 404);
+          return json({ invoice: rows[0] });
+        }
         throw new OwnerError("Unknown owner action.", 404);
       }
       const input = await ownerBody(request);
+      if (action === "invoice-create") {
+        let record;
+        try { record = validateInvoice(input); } catch (error) { throw new OwnerError(error.message); }
+        return json({ invoice: await rpc("gumnaam_invoice_create", { p_actor: owner.id, p_order: record, p_hash: await invoiceHash(record) }) }, 201);
+      }
+      if (action === "invoice-update") {
+        if (!/^GINV-\d{4}-\d{6,20}$/.test(input.number || "") || !Number.isInteger(input.amountPaid) || input.amountPaid < 0 || input.amountPaid > 10000000 || !["cash", "easypaisa", "bank_transfer", "other"].includes(input.paymentMethod) || typeof input.void !== "boolean") throw new OwnerError("Check the invoice payment details.");
+        return json({ invoice: await rpc("gumnaam_invoice_update", { p_actor: owner.id, p_number: input.number, p_version: ownerVersion(input.version), p_paid: input.amountPaid, p_method: input.paymentMethod, p_reference: ownerText(input.paymentReference ?? "", 100), p_void: input.void, p_reason: ownerText(input.reason, 2000, 2) }) });
+      }
       if (action === "update") return json(await rpc("gumnaam_owner_update", { p_actor: owner.id, p_reference: ownerReference(input.reference), p_version: ownerVersion(input.version), p_patch: ownerPatch(input.patch), p_reason: ownerText(input.reason, 2000, 2) }));
       if (action === "retry") return json({ queued: await rpc("gumnaam_owner_retry", { p_actor: owner.id, p_reference: ownerReference(input.reference), p_version: ownerVersion(input.version) }) });
       if (action === "suppress") {

@@ -1,11 +1,12 @@
 import { createOwnerAuth } from "./owner-auth.mjs";
 import { money, dateTime, STATUS_LABELS, PAYMENT_LABELS, nextStatuses, nextPayments, linesFor } from "./owner-model.mjs";
+import { setupInvoices } from "./owner-invoices.mjs";
 
 const config = window.GUMNAAM_OWNER || {};
 const auth = createOwnerAuth(config);
 const $ = (selector) => document.querySelector(selector);
 const state = { view: "overview", epoch: 0, load: 0, orders: { offset: 0, total: 0 }, customers: { offset: 0, total: 0 }, detail: null, factor: null, enrollment: null, idle: Date.now(), signedIn: false };
-const views = { overview: ["01 / At a glance", "Overview."], orders: ["02 / Fulfilment", "Orders."], customers: ["03 / The people", "Customers."], activity: ["04 / Recorded changes", "Activity."], security: ["05 / Access & privacy", "Security."] };
+const views = { overview: ["01 / At a glance", "Overview."], orders: ["02 / Fulfilment", "Orders."], invoices: ["03 / In-person sales", "Invoices."], customers: ["04 / The people", "Customers."], activity: ["05 / Recorded changes", "Activity."], security: ["06 / Access & privacy", "Security."] };
 
 function node(tag, text = "", className = "") {
   const value = document.createElement(tag);
@@ -20,6 +21,7 @@ function lock(message = "Signed out. Your private workspace has been cleared.") 
   state.detail = null;
   state.factor = null;
   state.enrollment = null;
+  invoiceUI.clear();
   auth.clear();
   $("#workspace").hidden = true;
   $("#login-view").hidden = false;
@@ -171,7 +173,8 @@ function renderActivity(container, entries, details = false) {
   if (!entries.length) return empty(container, "No panel changes recorded yet.");
   for (const entry of entries) {
     const row = node("article", "", "activity-entry");
-    row.append(node("p", dateTime(entry.created_at), "eyebrow"), node("p", `${entry.action.replaceAll("_", " ")}${entry.order_reference ? ` / ${entry.order_reference}` : ""}`), node("p", entry.reason, "fine-print"));
+    const reference = entry.order_reference || entry.after_value?.invoice;
+    row.append(node("p", dateTime(entry.created_at), "eyebrow"), node("p", `${entry.action.replaceAll("_", " ")}${reference ? ` / ${reference}` : ""}`), node("p", entry.reason, "fine-print"));
     if (details && entry.before_value && entry.after_value) {
       const changed = Object.keys(entry.after_value).filter((key) => key !== "version" && entry.before_value[key] !== entry.after_value[key]);
       row.append(node("p", changed.map((key) => `${key.replaceAll("_", " ")}: ${String(entry.before_value[key])} → ${String(entry.after_value[key])}`).join(" / "), "fine-print"));
@@ -190,6 +193,7 @@ async function loadView() {
     if (view === "orders") result = await api("orders", { ...formParams($("#order-filters")), offset: state.orders.offset });
     if (view === "customers") result = await api("customers", { ...formParams($("#customer-filters")), offset: state.customers.offset });
     if (view === "activity") result = await api("audit");
+    if (view === "invoices") await invoiceUI.load();
     if (view === "security") result = await auth.factors();
     if (!state.signedIn || serial !== state.load || view !== state.view) return;
     if (view === "overview") renderOverview(result);
@@ -295,6 +299,8 @@ async function exportData(kind, button) {
     $("#workspace-status").textContent = "Export downloaded. Keep it private.";
   });
 }
+
+const invoiceUI = setupInvoices({ api, node, busy, confirmAction, signedIn: () => state.signedIn });
 
 $("#login-form").addEventListener("submit", (event) => {
   event.preventDefault(); const form = event.currentTarget;

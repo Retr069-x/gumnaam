@@ -49,9 +49,10 @@
         <nav id="owner-nav" aria-label="Owner sections">
           <button type="button" data-view="overview" aria-current="page"><span>01</span> Overview</button>
           <button type="button" data-view="orders"><span>02</span> Orders</button>
-          <button type="button" data-view="customers"><span>03</span> Customers</button>
-          <button type="button" data-view="activity"><span>04</span> Activity</button>
-          <button type="button" data-view="security"><span>05</span> Security</button>
+          <button type="button" data-view="invoices"><span>03</span> Invoices</button>
+          <button type="button" data-view="customers"><span>04</span> Customers</button>
+          <button type="button" data-view="activity"><span>05</span> Activity</button>
+          <button type="button" data-view="security"><span>06</span> Security</button>
         </nav>
         <div class="sidebar-end"><p id="owner-email"></p><p class="fine-print">Private session.<br>Locks after 15 minutes idle.</p><button type="button" class="quiet-link" id="sign-out">Sign out ↗</button></div>
       </aside>
@@ -64,7 +65,7 @@
             <label>Placed from<input name="from" type="date"></label><label>Through<input name="until" type="date"></label>
             <button type="submit" class="button compact">Apply range</button><button type="button" class="quiet-link" id="all-time">All time</button>
           </form>
-          <p class="fine-print metric-explanation">Order-date cohort, Pakistan time. Test orders excluded. Revenue is recorded manually; it is not a bank balance or profit.</p>
+          <p class="fine-print metric-explanation">Online orders only, by order date in Pakistan time. Walk-in sales have separate totals under Invoices. Test orders excluded. Revenue is recorded manually; it is not a bank balance or profit.</p>
           <div class="metric-grid" id="metrics" aria-label="Business metrics"></div>
           <div class="attention" id="attention" aria-label="Needs attention"></div>
           <div class="insight-grid"><section class="panel"><div class="panel-heading"><h2>Delivered &amp; paid.</h2><span class="eyebrow">Recent 30 days in range</span></div><p class="fine-print">Grouped by order placement date. Delivery included.</p><div id="revenue-chart" class="revenue-chart"></div></section><section class="panel"><h2>The pieces.</h2><p class="fine-print">Delivered, paid orders only. Merchandise value.</p><div id="top-products"></div></section></div>
@@ -83,6 +84,30 @@
           <div class="list-heading"><p id="order-count" class="eyebrow"></p><button type="button" class="quiet-link" data-export="orders">Export filtered orders ↓</button></div>
           <div class="table-scroll"><table class="data-table"><caption class="sr-only">Orders matching your filters</caption><thead><tr><th scope="col">Order / Placed</th><th scope="col">Customer</th><th scope="col">Status</th><th scope="col">Payment</th><th scope="col" class="numeric">Total</th><th scope="col"><span class="sr-only">Details</span></th></tr></thead><tbody id="order-rows"></tbody></table></div>
           <div class="pagination"><button type="button" class="button compact" data-page="orders-prev">Previous</button><span id="order-page"></span><button type="button" class="button compact" data-page="orders-next">Next</button></div>
+        </section>
+
+        <section id="invoices-view" hidden aria-labelledby="view-title">
+          <p class="fine-print">For customers buying in person. No delivery fee, no online order alert. Saved sales invoices can be printed or saved as PDF using your browser. Not a tax invoice.</p>
+          <div class="metric-grid invoice-metrics" id="invoice-metrics" aria-label="Walk-in invoice totals"></div>
+          <div class="invoice-builder">
+            <section class="panel">
+              <div class="panel-heading"><h2>Issue an invoice.</h2><button class="quiet-link" type="button" id="new-invoice">Clear / New invoice</button></div>
+              <form id="invoice-form">
+                <div class="invoice-fields"><label>Customer name<input name="customerName" value="Walk-in customer" maxlength="100" minlength="2" required autocomplete="off"></label><label>Phone / optional<input name="phone" type="tel" maxlength="24" autocomplete="off" placeholder="03001234567"></label><label>Email / optional<input name="email" type="email" maxlength="254" autocomplete="off"></label></div>
+                <div class="invoice-line-labels" aria-hidden="true"><span>Hoodie</span><span>Size</span><span>Qty</span><span>Price / PKR</span><span></span></div>
+                <div id="invoice-lines"></div>
+                <button type="button" class="quiet-link" id="add-invoice-line">Add another piece +</button>
+                <div class="invoice-fields invoice-payment-fields"><label>Discount / PKR<input name="discount" type="number" min="0" step="1" value="0" required></label><label>Amount received / PKR<input name="amountPaid" type="number" min="0" step="1" value="0" required></label><label>Payment method<select name="paymentMethod"><option value="cash">Cash</option><option value="easypaisa">Easypaisa</option><option value="bank_transfer">Bank transfer</option><option value="other">Other</option></select></label><label>Payment reference / optional<input name="paymentReference" maxlength="100"></label></div>
+                <button class="quiet-link" id="invoice-paid-in-full" type="button">Set received to full total</button>
+                <label class="invoice-note">Note printed on invoice / optional<textarea name="notes" maxlength="1000" rows="2"></textarea></label>
+                <div class="invoice-draft-totals" id="invoice-draft-totals" role="status" aria-live="polite"></div>
+                <p class="fine-print">Only enter money actually received. Prices are editable for in-person sales; default PKR 1,999. This does not change online prices or reserve stock. Contact details are not added to email marketing.</p>
+                <button class="button primary" id="issue-invoice" type="submit">Review &amp; issue invoice ↗</button>
+                <p class="form-status" id="invoice-status" role="status" aria-live="polite"></p>
+              </form>
+            </section>
+            <section class="panel invoice-history"><h2>Saved invoices.</h2><form id="invoice-filters" class="filter-bar"><label>Find an invoice<input name="q" type="search" maxlength="100" placeholder="Number, name, email or phone"></label><label>Status<select name="invoiceStatus"><option value="">All invoices</option><option value="issued">Issued</option><option value="void">Void</option></select></label><button type="submit" class="button compact">Search</button></form><p class="eyebrow" id="invoice-count"></p><div id="invoice-history"></div><div class="pagination"><button class="button compact" type="button" id="invoice-prev">Previous</button><span id="invoice-page"></span><button class="button compact" type="button" id="invoice-next">Next</button></div><p class="fine-print">Walk-in totals are all-time and separate from online revenue. Saved invoice lines are fixed; void and reissue if details are wrong. An unpaid balance is not paid revenue.</p></section>
+          </div>
         </section>
 
         <section id="customers-view" hidden aria-labelledby="view-title">
@@ -113,6 +138,7 @@
     <p class="form-status" id="detail-status" role="status" aria-live="polite"></p>
   </dialog>
   <dialog id="confirm-dialog" aria-labelledby="confirm-title"><h2 id="confirm-title">Confirm this action.</h2><p id="confirm-copy"></p><form method="dialog" class="confirm-buttons"><button class="button" value="cancel">Keep as is</button><button class="button primary" value="confirm">Confirm</button></form></dialog>
+  <dialog id="invoice-dialog" aria-labelledby="invoice-dialog-title"><div class="dialog-heading invoice-controls"><h2 id="invoice-dialog-title">Sales invoice.</h2><div class="detail-actions"><button class="button compact" type="button" id="print-invoice">Print / Save PDF ↓</button><button class="button compact" type="button" data-close="invoice-dialog">Close ×</button></div></div><article id="invoice-paper" class="invoice-paper"></article><section id="invoice-payment-editor" class="panel invoice-controls"></section><p class="form-status invoice-controls" id="invoice-dialog-status" role="status" aria-live="polite"></p></dialog>
   <noscript><p class="noscript">JavaScript is required for the private owner workspace. Customer records are never embedded in this page.</p></noscript>
 </body>
 </html>

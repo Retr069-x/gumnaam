@@ -122,6 +122,48 @@ dialog::backdrop { background: rgb(0 0 0 / .6); }
 #mfa-enrollment { margin-top: 20px; }
 #enrollment-form { display: grid; gap: 16px; }
 .noscript { padding: 30px; }
+.invoice-metrics { margin: 24px 0; }
+.invoice-builder { display: grid; gap: 20px; }
+.invoice-fields { display: grid; gap: 14px; margin: 20px 0; }
+.invoice-line { display: grid; grid-template-columns: 1fr 70px; gap: 12px; padding: 18px 0; border-top: 1px solid var(--line); }
+.invoice-line label:first-child { grid-column: 1; }
+.invoice-remove { justify-self: start; grid-column: 1 / -1; margin: 0 0 8px; }
+.invoice-line-labels { display: none; }
+.invoice-note { margin: 20px 0; }
+.invoice-draft-totals { display: grid; gap: 10px; padding: 22px 0; margin: 12px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.invoice-draft-totals > div { display: flex; justify-content: space-between; gap: 20px; }
+.invoice-draft-totals strong { font-weight: 500; }
+#issue-invoice { margin-top: 20px; }
+.invoice-history-entry { padding: 20px 0; border-bottom: 1px solid var(--line); }
+.invoice-history-entry > p { margin-top: 6px; overflow-wrap: anywhere; }
+.invoice-paper { background: #fff; padding: 24px 18px; margin: 24px 0; color: #000; }
+.invoice-paper-header { display: flex; justify-content: space-between; gap: 20px; padding-bottom: 24px; border-bottom: 1px solid var(--line); }
+.invoice-paper-header img { object-fit: contain; }
+.invoice-paper-header > div:last-child { text-align: right; }
+.invoice-paper-header h2 { font-size: 24px; }
+.invoice-paper-header .eyebrow { margin-top: 12px; }
+.invoice-paper-header .badge { margin-top: 10px; }
+.invoice-wordmark { font-size: 12px; letter-spacing: .2em; }
+.invoice-billed-to { margin: 24px 0; overflow-wrap: anywhere; }
+.invoice-paper-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 11px; }
+.invoice-paper-table th, .invoice-paper-table td { padding: 12px 5px; border-bottom: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; text-align: right; }
+.invoice-paper-table th:first-child, .invoice-paper-table td:first-child { text-align: left; width: 30%; }
+.invoice-paper-table th { font-size: 9px; font-weight: 500; }
+.invoice-paper-totals { margin: 24px 0 24px auto; max-width: 300px; }
+.invoice-paper-totals > div { display: flex; gap: 20px; justify-content: space-between; margin: 8px 0; }
+.invoice-paper-totals dd { margin: 0; white-space: nowrap; }
+.invoice-public-note { white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 20px; }
+.invoice-paper-footer { border-top: 1px solid var(--line); padding-top: 24px; margin-top: 30px; }
+.invoice-paper-footer .fine-print { font-size: 10px; }
+.invoice-payment-form { display: grid; gap: 16px; margin: 20px 0; }
+@media (min-width: 600px) {
+  .invoice-fields { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .invoice-line { grid-template-columns: minmax(120px,2fr) 65px 65px 95px auto; }
+  .invoice-remove { grid-column: auto; align-self: end; margin-bottom: 12px; }
+  .invoice-paper { padding: 36px; }
+  .invoice-payment-form { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+@media (min-width: 1300px) { .invoice-builder { grid-template-columns: minmax(0,1.8fr) minmax(0,1fr); } }
 @media (min-width: 800px) {
   .owner-header { padding: 0 32px; }
   .owner-login { grid-template-columns: 1.05fr 1fr; }
@@ -141,10 +183,17 @@ dialog::backdrop { background: rgb(0 0 0 / .6); }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; } }
 @media print {
+  @page { size: A4; margin: 14mm; }
   body > :not(#order-detail) { display: none !important; }
   #order-detail { display: block; position: static; width: 100%; max-height: none; overflow: visible; border: 0; background: #fff; padding: 0; }
   #order-detail::backdrop { display: none; }
   #order-detail .dialog-heading button, #detail-content > :not(.detail-grid), #detail-status, .print-private { display: none !important; }
   .detail-grid { grid-template-columns: 1fr 1fr; }
   .panel { border: 0; padding: 16px 0; }
+  body.printing-invoice > * { display: none !important; }
+  body.printing-invoice > #invoice-dialog { display: block !important; position: static; width: 100%; max-height: none; border: 0; padding: 0; overflow: visible; background: #fff; }
+  body.printing-invoice #invoice-dialog::backdrop, body.printing-invoice .invoice-controls { display: none !important; }
+  body.printing-invoice .invoice-paper { margin: 0; padding: 0; font-size: 12px; }
+  .invoice-paper-header, .invoice-paper-totals, .invoice-paper-footer, .invoice-paper-table tr { break-inside: avoid; }
+  .invoice-paper-table thead { display: table-header-group; }
 }

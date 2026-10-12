@@ -4,8 +4,8 @@ globalThis.GUMNAAM_PRODUCTS = [
     colour: "Black",
     category: "hoodies",
     number: "01",
-    name: "Obsidian Mark Hoodie",
-    shortName: "Obsidian",
+    name: "Black Hoodie",
+    shortName: "Black",
     price: 1999,
     stock: 6,
     description:
@@ -26,8 +26,8 @@ globalThis.GUMNAAM_PRODUCTS = [
     colour: "Camel",
     category: "hoodies",
     number: "02",
-    name: "Dune Script Hoodie",
-    shortName: "Dune",
+    name: "Camel Hoodie",
+    shortName: "Camel",
     price: 1999,
     stock: 4,
     description:
@@ -45,11 +45,11 @@ globalThis.GUMNAAM_PRODUCTS = [
   },
   {
     id: "navy",
-    colour: "Navy",
+    colour: "Navy Blue",
     category: "hoodies",
     number: "03",
-    name: "Midnight Mark Hoodie",
-    shortName: "Midnight",
+    name: "Navy Blue Hoodie",
+    shortName: "Navy Blue",
     price: 1999,
     stock: 8,
     description:
@@ -66,11 +66,11 @@ globalThis.GUMNAAM_PRODUCTS = [
   },
   {
     id: "olive",
-    colour: "Olive",
+    colour: "Olive Green",
     category: "hoodies",
     number: "04",
-    name: "Field Mark Hoodie",
-    shortName: "Field",
+    name: "Olive Green Hoodie",
+    shortName: "Olive Green",
     price: 1999,
     stock: 3,
     description:

@@ -24,9 +24,11 @@ for (const name of ["create-order", "retry-notifications"]) {
 }
 
 const ownerModel = (await readFile(new URL("js/owner-model.mjs", root), "utf8")).replace(/^export /gm, "").trim();
-const ownerShared = (await readFile(new URL("supabase/functions/_shared/owner.mjs", root), "utf8")).replace(/^import [^\n]+\r?\n/, "").replace(/^export /gm, "").trim();
+const invoiceModel = (await readFile(new URL("js/invoice-model.mjs", root), "utf8")).replace(/^export /gm, "").trim();
+const invoiceShared = (await readFile(new URL("supabase/functions/_shared/invoices.mjs", root), "utf8")).replace(/^import [^\n]+\r?\n/gm, "").replace(/^export /gm, "").trim();
+const ownerShared = (await readFile(new URL("supabase/functions/_shared/owner.mjs", root), "utf8")).replace(/^import [^\n]+\r?\n/gm, "").replace(/^export /gm, "").trim();
 const ownerEntry = (await readFile(new URL("supabase/functions/owner-api/index.ts", root), "utf8")).replace(/^import [^\n]+\r?\n/, "").trim();
-const ownerBundle = `${ownerModel}\n\n${ownerShared}\n\n${ownerEntry}\n`;
+const ownerBundle = `${ownerModel}\n\n${invoiceModel}\n\n${invoiceShared}\n\n${ownerShared}\n\n${ownerEntry}\n`;
 new vm.Script(ownerBundle, { filename: "owner-api.ts" });
 await writeFile(new URL("owner-api.ts", output), ownerBundle, "utf8");
 console.log("Prepared supabase/dashboard/owner-api.ts");

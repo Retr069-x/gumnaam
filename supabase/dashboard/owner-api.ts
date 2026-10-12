@@ -28,6 +28,60 @@ function pakistanRange(from, until) {
   return { from: from ? new Date(`${from}T00:00:00+05:00`).toISOString() : null, until: end?.toISOString() || null };
 }
 
+const INVOICE_HOODIES = [
+  { id: "obsidian", name: "Black", price: 1999, sizes: ["S", "M", "L", "XL"] },
+  { id: "navy", name: "Navy Blue", price: 1999, sizes: ["S", "M", "L", "XL"] },
+  { id: "camel", name: "Camel", price: 1999, sizes: ["S", "M", "L", "XL"] },
+  { id: "olive", name: "Olive Green", price: 1999, sizes: ["S", "M", "L", "XL"] }
+];
+const INVOICE_METHODS = { cash: "Cash", easypaisa: "Easypaisa", bank_transfer: "Bank transfer", other: "Other" };
+function invoiceTotals(lines, discount = 0, paid = 0) {
+  if (!Array.isArray(lines) || !lines.length || lines.length > 20) throw new Error("Add between one and twenty invoice lines.");
+  const keys = new Set();
+  let pieces = 0;
+  const subtotal = lines.reduce((sum, line) => {
+    const product = INVOICE_HOODIES.find((entry) => entry.id === line.productId);
+    if (!product || !product.sizes.includes(line.size)) throw new Error("Choose a hoodie and size for each line.");
+    const key = `${line.productId}:${line.size}`;
+    if (keys.has(key)) throw new Error("Combine duplicate hoodie and size lines.");
+    keys.add(key);
+    if (!Number.isInteger(line.quantity) || line.quantity < 1 || line.quantity > 100) throw new Error("Quantity must be between 1 and 100.");
+    if (!Number.isInteger(line.unitPrice) || line.unitPrice < 1 || line.unitPrice > 100000) throw new Error("Unit price must be a whole PKR amount between 1 and 100,000.");
+    pieces += line.quantity;
+    return sum + line.quantity * line.unitPrice;
+  }, 0);
+  if (pieces > 100) throw new Error("Up to 100 pieces per invoice.");
+  if (!Number.isInteger(discount) || discount < 0 || discount >= subtotal) throw new Error("Discount must be a whole PKR amount below the subtotal.");
+  const total = subtotal - discount;
+  if (!Number.isInteger(paid) || paid < 0 || paid > total) throw new Error("Amount received must be between zero and the invoice total.");
+  return { subtotal, discount, total, paid, balance: total - paid, pieces };
+}
+
+function invoiceText(value, max, min = 0) {
+  if (typeof value !== "string" || value.trim().length < min || value.trim().length > max || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(value)) throw new Error("Check the invoice details.");
+  return value.trim();
+}
+function validateInvoice(input) {
+  if (!input || typeof input !== "object" || Array.isArray(input) || typeof input.requestKey !== "string" || !/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(input.requestKey)) throw new Error("Start a fresh invoice and try again.");
+  const totals = invoiceTotals(input.items, input.discount, input.amountPaid);
+  const email = invoiceText(input.email ?? "", 254).toLowerCase();
+  if (email && (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || /[\r\n]/.test(email))) throw new Error("Check the customer email.");
+  let phone = invoiceText(input.phone ?? "", 24).replace(/[\s()+-]/g, "");
+  if (phone && !/^(?:03\d{9}|923\d{9})$/.test(phone)) throw new Error("Enter a valid Pakistan mobile number, or leave it blank.");
+  if (phone.startsWith("0")) phone = `92${phone.slice(1)}`;
+  if (!Object.hasOwn(INVOICE_METHODS, input.paymentMethod)) throw new Error("Choose a payment method.");
+  return {
+    request_key: input.requestKey.toLowerCase(), customer_name: invoiceText(input.customerName, 100, 2), email, phone,
+    line_items: input.items.map((line) => ({ product_id: line.productId, product_name: INVOICE_HOODIES.find((entry) => entry.id === line.productId).name, size: line.size, quantity: line.quantity, unit_price: line.unitPrice })).sort((a, b) => `${a.product_id}:${a.size}`.localeCompare(`${b.product_id}:${b.size}`)),
+    subtotal: totals.subtotal, discount: totals.discount, total: totals.total, amount_paid: totals.paid,
+    payment_method: input.paymentMethod, payment_reference: invoiceText(input.paymentReference ?? "", 100), notes: invoiceText(input.notes ?? "", 1000)
+  };
+}
+async function invoiceHash(record) {
+  const bytes = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(record))));
+  return [...bytes].map((value) => value.toString(16).padStart(2, "0")).join("");
+}
+
 class OwnerError extends Error {
   constructor(message, status = 400, code = "") { super(message); this.status = status; this.code = code; }
 }
@@ -179,10 +233,32 @@ function createOwnerHandler(env, fetcher = fetch) {
           if (typeof signedPath !== "string" || !signedPath.startsWith("/object/sign/payment-receipts/")) throw new OwnerError("Private receipt preview is unavailable.", 503);
           return json({ url: `${env.SUPABASE_URL}/storage/v1${signedPath}`, expiresIn: 60 });
         }
-        if (action === "audit") return json({ rows: await db("/rest/v1/gumnaam_owner_audit?select=created_at,order_reference,action,reason&order=created_at.desc,id.desc&limit=50") });
+        if (action === "audit") return json({ rows: await db("/rest/v1/gumnaam_owner_audit?select=created_at,order_reference,action,after_value,reason&order=created_at.desc,id.desc&limit=50") });
+        if (action === "invoices") {
+          const filter = ownerFilters(params);
+          const status = params.get("invoiceStatus") || "";
+          if (status && !["issued", "void"].includes(status)) throw new OwnerError("Choose a valid invoice status.");
+          return json(await rpc("gumnaam_invoice_list", { p_query: filter.p_query, p_status: status, p_offset: filter.p_offset, p_limit: filter.p_limit }));
+        }
+        if (action === "invoice") {
+          const number = params.get("number");
+          if (!/^GINV-\d{4}-\d{6,20}$/.test(number || "")) throw new OwnerError("Choose a valid invoice.");
+          const rows = await db(`/rest/v1/gumnaam_invoices?number=eq.${number}&select=number,created_at,updated_at,customer_name,email,phone,line_items,subtotal,discount,total,amount_paid,refunded_amount,payment_method,payment_reference,notes,status,void_reason,version&limit=1`);
+          if (!rows.length) throw new OwnerError("Invoice not found.", 404);
+          return json({ invoice: rows[0] });
+        }
         throw new OwnerError("Unknown owner action.", 404);
       }
       const input = await ownerBody(request);
+      if (action === "invoice-create") {
+        let record;
+        try { record = validateInvoice(input); } catch (error) { throw new OwnerError(error.message); }
+        return json({ invoice: await rpc("gumnaam_invoice_create", { p_actor: owner.id, p_order: record, p_hash: await invoiceHash(record) }) }, 201);
+      }
+      if (action === "invoice-update") {
+        if (!/^GINV-\d{4}-\d{6,20}$/.test(input.number || "") || !Number.isInteger(input.amountPaid) || input.amountPaid < 0 || input.amountPaid > 10000000 || !["cash", "easypaisa", "bank_transfer", "other"].includes(input.paymentMethod) || typeof input.void !== "boolean") throw new OwnerError("Check the invoice payment details.");
+        return json({ invoice: await rpc("gumnaam_invoice_update", { p_actor: owner.id, p_number: input.number, p_version: ownerVersion(input.version), p_paid: input.amountPaid, p_method: input.paymentMethod, p_reference: ownerText(input.paymentReference ?? "", 100), p_void: input.void, p_reason: ownerText(input.reason, 2000, 2) }) });
+      }
       if (action === "update") return json(await rpc("gumnaam_owner_update", { p_actor: owner.id, p_reference: ownerReference(input.reference), p_version: ownerVersion(input.version), p_patch: ownerPatch(input.patch), p_reason: ownerText(input.reason, 2000, 2) }));
       if (action === "retry") return json({ queued: await rpc("gumnaam_owner_retry", { p_actor: owner.id, p_reference: ownerReference(input.reference), p_version: ownerVersion(input.version) }) });
       if (action === "suppress") {

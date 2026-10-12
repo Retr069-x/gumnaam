@@ -308,8 +308,8 @@ test("multi-item COD and Easypaisa persist all lines and email the complete summ
     assert.equal((await response.json()).total, 4198);
     assert.equal(mock.rows[0].line_items.length, 2);
     await Promise.all(mock.tasks);
-    assert.match(mock.emails[0].text, /Obsidian Mark Hoodie \/ M \/ quantity 1/);
-    assert.match(mock.emails[0].text, /Dune Script Hoodie \/ L \/ quantity 1/);
+    assert.match(mock.emails[0].text, /Black Hoodie \/ M \/ quantity 1/);
+    assert.match(mock.emails[0].text, /Camel Hoodie \/ L \/ quantity 1/);
     assert.match(mock.emails[0].text, /Delivery: PKR 200/);
     assert.match(mock.emails[0].text, /Total: PKR 4198/);
   }

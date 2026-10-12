@@ -24,7 +24,25 @@ The supplied `sb_publishable_` key in `js/owner-config.js` is intentionally publ
 - Sign out, refresh or let the page idle for 15 minutes: records and tokens must clear. Do not screenshot private records for public sharing.
 - Inspect Supabase security advisors after the migration. The added tables intentionally have RLS with no browser policies and service-only access.
 
-## Reports and money
+## In-person invoices
+
+For an already activated owner panel, run `invoices.sql` once in the SQL Editor, then redeploy the complete regenerated `dashboard/owner-api.ts` with JWT verification still ON. No owner-account, secrets, bucket or Cron setup needs to be repeated. The new Invoices tab can then create and reopen saved invoices.
+
+Invoices use separate `gumnaam_invoices` records, not `gumnaam_orders`. They have their own all-time totals under Invoices; online Overview and Customers remain online-order reports. Walk-in contacts are saved with the invoice but never become marketing subscribers. No delivery charge, merchant email or stock reservation is added. Do not also record the same sale as an online order unless you deliberately want separate records; reports do not automatically deduplicate across channels.
+
+Choose Black, Navy Blue, Camel or Olive Green, sizes S–XL, quantities and a unit price (default PKR 1,999). Prices can be negotiated for an in-person invoice without changing the storefront catalog. Discount and received amounts are whole PKR values, not percentages. A customer name is required; “Walk-in customer” is the default. Phone and email are optional. The sale must have a positive total. Maximum 20 distinct hoodie/size lines and 100 pieces.
+
+Review the displayed total and money actually received, then issue. A database-assigned `GINV-YYYY-NNNNNN` number appears only after successful saving. The year uses Pakistan time; the counter is global and sequence gaps are normal. Browser Print / Save PDF prints only the sales invoice, not admin controls, audit records or internal order notes. The document is explicitly not a tax invoice and does not calculate taxes or profit. Use your required accounting process separately.
+
+Saved lines, customer details and totals are fixed. Payments can be increased to the full total with a reason; this is a received-to-date record, not a payment collection. Partial payments may use different methods, but the invoice displays only the latest method/reference, with updates retained in the panel audit. If a sale is incorrect, void it and issue a new one. When money was received, voiding records a full refund of the amount received; do this only after making the actual refund. Void invoices cannot be edited or reopened, are excluded from current invoiced/paid/balance totals and remain in history. No deletion endpoint is provided.
+
+Invoice creates use request UUID + a hash of validated, canonical server-calculated details with a transaction-level lock. Retry the same unsaved draft after a connection failure. Reload ends the draft; search existing invoices before starting a replacement after an uncertain save. Invoice edits use versions and row locks to prevent conflicting payment updates. Only an active owner may call these RPCs through the authenticated function. Records and drafts clear on sign-out/reload; no local-storage copy is kept.
+
+Before live use, test in a non-production project: multiple colours/sizes, discounts, no delivery, zero/partial/full payment, print output, retry without duplication, conflicting payment updates, void/refund history and guest access denial. Mocked tests cannot prove that your live migration ran correctly. Do not create fake paid invoices in production merely to test reports.
+
+Renamed catalog items keep their original IDs, so product links and bags continue to work. To use the new names in new online orders/alerts, redeploy both regenerated `dashboard/create-order.ts` and `dashboard/retry-notifications.ts`. Past order names and old notification snapshots are not rewritten.
+
+## Online reports and money
 
 Reports use the dates orders were placed in Pakistan time, and their currently recorded statuses. This is an order-date cohort, not a cash-flow ledger. Test orders are excluded. Historical records with incomplete payment states are not guessed to be paid.
 

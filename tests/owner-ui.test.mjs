@@ -3,9 +3,11 @@ import assert from "node:assert/strict";
 import vm from "node:vm";
 import { readFile } from "node:fs/promises";
 import * as model from "../js/owner-model.mjs";
+import * as invoiceModel from "../js/invoice-model.mjs";
 
 const html = await readFile(new URL("../admin.html", import.meta.url), "utf8");
 const source = (await readFile(new URL("../js/owner.js", import.meta.url), "utf8")).replace(/^import [^\n]+\r?\n/gm, "");
+const invoiceSource = (await readFile(new URL("../js/owner-invoices.mjs", import.meta.url), "utf8")).replace(/^import [^\n]+\r?\n/gm, "").replace(/^export /gm, "");
 class Element {
   constructor(tag, document) { this.tagName = tag; this.document = document; this.children = []; this.attributes = {}; this.dataset = {}; this.events = {}; this.style = {}; this._text = ""; this._value = undefined; this.hidden = false; this.open = false; this.disabled = false; }
   set textContent(value) { this._text = String(value); this.children = []; }
@@ -77,9 +79,15 @@ async function app(options = {}) {
     if (action === "order") result = { order, audit: [] };
     if (action === "update") result = { reference: ref, version: 2 };
     if (action === "audit") result = { rows: [] };
+    if (action === "invoices") result = { total: 0, rows: [], summary: { invoiced: 0, paid: 0, balance: 0, refunded: 0 } };
+    if (action === "invoice-create") {
+      const body = JSON.parse(request.body);
+      const subtotal = body.items.reduce((sum, line) => sum + line.quantity * line.unitPrice, 0);
+      result = { invoice: { number: "GINV-2026-000001", created_at: "2026-10-13T10:00:00Z", customer_name: body.customerName, email: body.email, phone: body.phone, line_items: body.items.map((line) => ({ product_name: invoiceModel.INVOICE_HOODIES.find((p) => p.id === line.productId).name, size: line.size, quantity: line.quantity, unit_price: line.unitPrice })), subtotal, discount: body.discount, total: subtotal - body.discount, amount_paid: body.amountPaid, refunded_amount: 0, payment_method: body.paymentMethod, payment_reference: body.paymentReference, notes: body.notes, status: "issued", version: 1 } };
+    }
     return new Response(JSON.stringify(result), { status: 200 });
   };
-  vm.runInNewContext(source, { ...model, createOwnerAuth: () => auth, window: { GUMNAAM_OWNER: { endpoint: "https://test.supabase.co/functions/v1/owner-api" }, addEventListener: (name, callback) => { windowEvents[name] = callback; }, print() {} }, document, fetch: fetcher, URL, URLSearchParams, AbortSignal, Intl, Date, setInterval() {}, setTimeout, FormData: class { constructor(form) { this.values = form.all().filter((el) => el.name && !(el.type === "checkbox" && !el.checked)).map((el) => [el.name, el.type === "checkbox" ? "on" : el.value]); } [Symbol.iterator]() { return this.values[Symbol.iterator](); } } });
+  vm.runInNewContext(`${invoiceSource}\n${source}`, { ...model, ...invoiceModel, createOwnerAuth: () => auth, window: { GUMNAAM_OWNER: { endpoint: "https://test.supabase.co/functions/v1/owner-api" }, addEventListener: (name, callback) => { windowEvents[name] = callback; }, crypto: { randomUUID: () => '11111111-1111-4111-8111-111111111111' }, print() {} }, document, fetch: fetcher, URL, URLSearchParams, AbortSignal, Intl, Date, setInterval() {}, setTimeout, FormData: class { constructor(form) { this.values = form.all().filter((el) => el.name && !(el.type === "checkbox" && !el.checked)).map((el) => [el.name, el.type === "checkbox" ? "on" : el.value]); } get(key) { return this.values.find(([name]) => name === key)?.[1] ?? null; } [Symbol.iterator]() { return this.values[Symbol.iterator](); } } });
   const click = async (element) => { await document.fire("click", { target: element }); await settle(); };
   const login = async () => { await document.querySelector("#login-form").fire("submit"); await settle(); };
   return { document, requests, click, login, windowEvents };
@@ -145,4 +153,35 @@ test("leaving a page clears records before a back-forward cache restore", async 
   assert.equal(ui.document.querySelector("#workspace").hidden, true);
   ui.windowEvents.pageshow({ persisted: true });
   assert.match(ui.document.querySelector("#login-status").textContent, /Sign in/);
+});
+
+test("invoice builder calculates no delivery, permits full received amount and saves only after confirmation", async () => {
+  const ui = await app(); await ui.login();
+  await ui.document.querySelector("#owner-nav").fire("click", { target: ui.document.querySelector('[data-view="invoices"]') }); await settle();
+  assert.match(ui.document.querySelector("#invoice-draft-totals").textContent, /DeliveryPKR 0/);
+  await ui.document.querySelector("#invoice-paid-in-full").fire("click");
+  const form = ui.document.querySelector("#invoice-form");
+  assert.equal(Number(form.elements.amountPaid.value), 1999);
+  form.elements.customerName.value = "Buyer <script>unsafe</script>";
+  const issuing = form.fire("submit"); await settle();
+  assert.equal(ui.document.querySelector("#confirm-dialog").open, true);
+  assert.ok(!ui.requests.some((r) => r.action === "invoice-create"));
+  ui.document.querySelector("#confirm-dialog").returnValue = "confirm"; ui.document.querySelector("#confirm-dialog").close(); await issuing; await settle();
+  assert.equal(ui.document.querySelector("#invoice-dialog").open, true);
+  assert.match(ui.document.querySelector("#invoice-paper").textContent, /GINV-2026-000001/);
+  assert.match(ui.document.querySelector("#invoice-paper").textContent, /Buyer <script>unsafe<\/script>/);
+  assert.equal(ui.document.querySelectorAll("#invoice-paper script").length, 0);
+  assert.match(ui.document.querySelector("#invoice-paper").textContent, /Black/);
+  const saved = JSON.parse(ui.requests.find((r) => r.action === "invoice-create").request.body);
+  assert.equal(saved.amountPaid, 1999); assert.equal(saved.discount, 0); assert.ok(saved.requestKey);
+});
+
+test("invoice drafts and previews are cleared at sign-out", async () => {
+  const ui = await app(); await ui.login();
+  ui.document.querySelector("#invoice-form").elements.customerName.value = "Private Buyer";
+  ui.document.querySelector("#invoice-paper").textContent = "Private sale";
+  await ui.document.querySelector("#sign-out").fire("click");
+  assert.equal(ui.document.querySelector("#invoice-paper").children.length, 0);
+  assert.equal(ui.document.querySelector("#invoice-paper").textContent, "");
+  assert.equal(ui.document.querySelector("#invoice-form").elements.customerName.value, "Walk-in customer");
 });
