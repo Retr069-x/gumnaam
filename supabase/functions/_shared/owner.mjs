@@ -75,7 +75,9 @@ function ownerDatabase(env, fetcher) {
       try { result = await response.json(); } catch {}
       const codes = { "40001": 409, "P0002": 404, "22023": 400, "42501": 403 };
       if (Object.hasOwn(codes, result.code)) throw new OwnerError(result.message || "The change could not be saved.", codes[result.code]);
-      throw new OwnerError("Owner service unavailable. Check the owner-panel migration and function deployment.", 503);
+      const error = new OwnerError("Owner service unavailable. Check the owner-panel migration and function deployment.", 503);
+      error.httpStatus = response.status;
+      throw error;
     }
     if (response.status === 204) return null;
     const value = await response.text();
@@ -140,7 +142,12 @@ export function createOwnerHandler(env, fetcher = fetch) {
           const rows = await db(`/rest/v1/gumnaam_orders?reference=eq.${reference}&select=${OWNER_ORDER_COLUMNS}&limit=1`);
           if (!rows.length) throw new OwnerError("Order not found.", 404);
           const audit = await db(`/rest/v1/gumnaam_owner_audit?order_reference=eq.${reference}&select=created_at,action,before_value,after_value,reason&order=created_at.desc,id.desc&limit=25`);
-          return json({ order: rows[0], audit });
+          let customerEmail = { available: false };
+          try {
+            const receipts = await db(`/rest/v1/gumnaam_customer_emails?reference=eq.${reference}&select=status,attempts,sent_at,first_attempt_at&limit=1`);
+            customerEmail = { available: true, receipt: receipts[0] || null };
+          } catch (error) { if (error.httpStatus !== 404) throw error; }
+          return json({ order: rows[0], audit, customerEmail });
         }
         if (action === "receipt") {
           const reference = ownerReference(params.get("reference"));
@@ -180,6 +187,7 @@ export function createOwnerHandler(env, fetcher = fetch) {
       }
       if (action === "update") return json(await rpc("gumnaam_owner_update", { p_actor: owner.id, p_reference: ownerReference(input.reference), p_version: ownerVersion(input.version), p_patch: ownerPatch(input.patch), p_reason: ownerText(input.reason, 2000, 2) }));
       if (action === "retry") return json({ queued: await rpc("gumnaam_owner_retry", { p_actor: owner.id, p_reference: ownerReference(input.reference), p_version: ownerVersion(input.version) }) });
+      if (action === "retry-customer-email") return json({ queued: await rpc("gumnaam_owner_retry_customer_email", { p_actor: owner.id, p_reference: ownerReference(input.reference) }) });
       if (action === "suppress") {
         const email = ownerText(input.email, 254, 3).toLowerCase();
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new OwnerError("Choose a valid customer email.");

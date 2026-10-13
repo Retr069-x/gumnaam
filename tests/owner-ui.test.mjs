@@ -77,7 +77,8 @@ async function app(options = {}) {
     if (action === "overview") result = { summary: { orders: 1, customers: 1, delivered_paid_value: 2199, merchandise_revenue: 1999, delivery_collected: 200, payments_recorded: 2199, awaiting_payment: 0, refunded_value: 0, delivered_paid_orders: 1, pending: 0, confirmed: 0, dispatched: 0, delivered: 1, cancelled: 0, verify_payments: 0, failed_alerts: 0, aged_pending: 0, cancelled_paid: 0 }, daily: [{ day: "2026-10-01", revenue: 2199, orders: 1 }], products: [{ name: "Obsidian", units: 1, value: 1999 }], cities: [{ city: "Faisalabad", orders: 1 }] };
     if (action === "orders") result = { total: 1, rows: [order] };
     if (action === "customers") result = { total: 1, rows: [{ name: order.customer_name, email: order.email, phone: order.phone, city: order.city, orders: 1, last_order: order.created_at, delivered_paid_value: 0, marketing_eligible: false }] };
-    if (action === "order") result = { order, audit: [] };
+    if (action === "order") result = { order: { ...order, ...(options.order || {}) }, audit: [], customerEmail: { available: true, receipt: options.customerReceipt || { status: "sent", attempts: 1 } } };
+    if (action === "retry-customer-email") result = { queued: true };
     if (action === "update") result = { reference: ref, version: 2 };
     if (action === "audit") result = { rows: [] };
     if (action === "invoices") result = { total: 0, rows: [], summary: { invoiced: 0, paid: 0, balance: 0, refunded: 0 } };
@@ -126,6 +127,42 @@ test("owner editor sends only chosen changes with a version and reason after con
   const update = JSON.parse(ui.requests.find((request) => request.action === "update").request.body);
   assert.deepEqual(update.patch, { status: "confirmed" });
   assert.equal(update.version, 1); assert.equal(update.reason, "Stock checked");
+});
+
+test("order management puts status controls first and distinguishes customer receipts from owner alerts", async () => {
+  const ui = await app(); await ui.login();
+  await ui.document.querySelector("#owner-nav").fire("click", { target: ui.document.querySelector('[data-view="orders"]') }); await settle();
+  assert.match(ui.document.querySelector("[data-order]").textContent, /Manage/);
+  await ui.click(ui.document.querySelector("[data-order]"));
+  const content = ui.document.querySelector("#detail-content");
+  assert.match(content.textContent, /Update order status/);
+  assert.match(content.textContent, /Current status: Pending confirmation/);
+  assert.match(content.textContent, /Customer order receiptAccepted by email provider/);
+  assert.match(content.textContent, /does not send a confirmation message/);
+  const elements = content.all();
+  assert.ok(elements.indexOf(ui.document.querySelector("#order-editor")) < elements.indexOf(ui.document.querySelector(".detail-grid")));
+});
+
+test("status controls offer confirmation, cancellation, dispatch and delivery at the appropriate stages", async () => {
+  for (const [status, options] of [["pending_confirmation", ["pending_confirmation", "confirmed", "cancelled"]], ["pending_verification", ["pending_verification", "confirmed", "cancelled"]], ["confirmed", ["confirmed", "dispatched", "cancelled"]], ["dispatched", ["dispatched", "completed", "cancelled"]]]) {
+    const ui = await app({ order: { status } }); await ui.login();
+    await ui.document.querySelector("#owner-nav").fire("click", { target: ui.document.querySelector('[data-view="orders"]') }); await settle();
+    await ui.click(ui.document.querySelector("[data-order]"));
+    assert.deepEqual(Array.from(ui.document.querySelector("#order-editor").elements.status.children, (option) => option.value), options);
+  }
+});
+
+test("customer receipt retry requires confirmation and leaves order status unchanged", async () => {
+  const ui = await app({ customerReceipt: { status: "failed", attempts: 12 } }); await ui.login();
+  await ui.document.querySelector("#owner-nav").fire("click", { target: ui.document.querySelector('[data-view="orders"]') }); await settle();
+  await ui.click(ui.document.querySelector("[data-order]"));
+  const task = ui.document.fire("click", { target: ui.document.querySelector("[data-retry-customer-email]") });
+  await settle();
+  assert.equal(ui.document.querySelector("#confirm-dialog").open, true);
+  assert.ok(!ui.requests.some((request) => request.action === "retry-customer-email"));
+  ui.document.querySelector("#confirm-dialog").returnValue = "confirm"; ui.document.querySelector("#confirm-dialog").close(); await task; await settle();
+  assert.deepEqual(JSON.parse(ui.requests.find((request) => request.action === "retry-customer-email").request.body), { reference: ref });
+  assert.ok(!ui.requests.some((request) => request.action === "update"));
 });
 test("sign-out clears visible records, dialog content and authenticator image", async () => {
   const ui = await app(); await ui.login();

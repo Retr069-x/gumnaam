@@ -55,6 +55,10 @@ Original asset paths are retained as fallbacks. WebP copies are loaded with pict
 
 Screenshots do not automatically verify a transfer. Review actual Easypaisa funds, then confirm the customer manually on WhatsApp. This is manual transfer checkout, not an Easypaisa payment-gateway integration.
 
+## Customer receipts and order management
+
+Customer order-received emails use the existing Resend sender and five-minute Supabase worker. Activate with `supabase/customer-emails.sql` and redeploy the three packaged dashboard functions; see `supabase/SETUP.md`. Only new online orders with an email receive a receipt; it says pending until manually confirmed. Marketing remains a separate opt-in. In Admin → Orders → Manage, use the status/payment selectors and a reason to confirm, cancel, dispatch or mark delivered. The order detail shows customer email status and a guarded retry action.
+
 ## Tests
 
 With Node.js 22 or later:

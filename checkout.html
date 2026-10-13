@@ -137,8 +137,9 @@
               <label class="checkout-field">Street address<input name="address" autocomplete="street-address" placeholder="House, street, area" maxlength="400" minlength="8" required>
 </label>
               <label class="checkout-field">Email <span>(optional)</span>
-<input name="email" type="email" autocomplete="email" maxlength="254">
+<input name="email" type="email" autocomplete="email" maxlength="254" aria-describedby="customer-email-note">
 </label>
+              <p class="checkout-note" id="customer-email-note">Optional. We’ll confirm your order on WhatsApp.</p>
               <label class="checkout-field">Delivery note <span>(optional)</span>
 <textarea name="notes" rows="2" maxlength="500">
 </textarea>
@@ -188,7 +189,7 @@
 </label>
                 <p class="checkout-note" id="receipt-note">JPG, PNG or WebP. Maximum 4 MB. Stored privately. Hide your balance and unrelated transactions.</p>
                           </fieldset>
-            <p class="checkout-note">Your details are used to fulfil this order and confirm it on WhatsApp. No marketing unless you choose email updates below. <a href="privacy.html">Privacy &amp; payment information</a>.</p>
+            <p class="checkout-note">Your details are used for this order and its receipt. Confirmation is on WhatsApp. No marketing unless you choose email updates below. <a href="privacy.html">Privacy &amp; payment information</a>.</p>
             <label class="checkout-consent" data-marketing-consent hidden>
 <input name="marketingConsent" type="checkbox">
 <span>Email me about new drops and occasional Gumnaam offers. Optional. I can opt out at any time by emailing gumnaamofficialpk@gmail.com.</span>

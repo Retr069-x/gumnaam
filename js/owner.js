@@ -140,7 +140,7 @@ function renderOrders(data) {
     const status = node("td"); status.append(badge(STATUS_LABELS[order.status], order.status === "completed"));
     const payment = node("td"); payment.append(node("span", PAYMENT_LABELS[order.payment_status]), node("small", `${order.payment_method === "cod" ? "COD" : "Easypaisa"} / Alert ${order.notification_status}`));
     const total = node("td", money(order.total), "numeric");
-    const action = node("td"); const button = node("button", "Open ↗", "quiet-link"); button.type = "button"; button.dataset.order = order.reference; button.setAttribute("aria-label", `Open order ${order.reference}`); action.append(button);
+    const action = node("td"); const button = node("button", "Manage ↗", "quiet-link"); button.type = "button"; button.dataset.order = order.reference; button.setAttribute("aria-label", `Manage order ${order.reference}`); action.append(button);
     row.append(ref, customer, status, payment, total, action); rows.append(row);
   }
   pagination("orders", data.rows.length);
@@ -254,16 +254,17 @@ function renderDetail(result) {
   whatsapp.href = `https://wa.me/${order.phone}?text=${encodeURIComponent(message)}`; whatsapp.target = "_blank"; whatsapp.rel = "noopener noreferrer"; actions.append(whatsapp);
   if (order.email) { const email = node("a", "Email customer ↗", "button compact"); email.href = `mailto:${encodeURIComponent(order.email)}?subject=${encodeURIComponent(`Gumnaam / Order ${order.reference}`)}`; actions.append(email); }
   const print = node("button", "Print packing slip ↓", "button compact"); print.type = "button"; print.dataset.print = "true"; actions.append(print);
-  content.append(actions, node("p", "Contact links open drafts only. Nothing is sent automatically.", "fine-print"));
+  content.append(actions, node("p", "Contact links open drafts only. Order-received emails are sent separately; saving a status change does not send a confirmation message.", "fine-print"));
   const grid = node("div", "", "detail-grid");
   const customer = node("section", "", "panel"); customer.append(node("h2", "The customer."), detailList([["Name", order.customer_name], ["Email", order.email], ["WhatsApp", `+${order.phone}`], ["City", order.city], ["Address", order.address], ["Delivery note", order.notes], ["Placed", dateTime(order.created_at)]]));
   const selection = node("section", "", "panel"); selection.append(node("h2", "The selection."));
   const items = node("ul", "", "order-items");
   for (const line of linesFor(order)) { const item = node("li"); item.append(node("strong", line.product_name), node("span", `${line.size} / ${line.quantity} × ${money(line.unit_price)} / ${money(line.quantity * line.unit_price)}`)); items.append(item); }
-  selection.append(items, detailList([["Pieces", money(order.subtotal ?? order.unit_price * order.quantity)], ["Delivery", money(order.cod_fee)], ["Total", money(order.total)], ["Method", order.payment_method === "cod" ? "Cash on delivery" : "Easypaisa"], ["Transaction", order.transaction_id], ["Email alert", `${order.notification_status} / ${order.notification_attempts} attempts`]]));
-  grid.append(customer, selection); content.append(grid);
-  if (order.receipt_path) { const receiptPanel = node("section", "", "panel"); receiptPanel.append(node("h2", "Payment evidence."), node("p", "Check the actual Easypaisa transaction before marking it verified. A screenshot alone is not proof of settlement.")); const button = node("button", "Show private screenshot", "button compact"); button.type = "button"; button.dataset.receipt = "true"; receiptPanel.append(button); const image = node("img", "", "receipt-preview"); image.id = "private-receipt"; image.alt = "Private payment screenshot"; image.hidden = true; receiptPanel.append(image); content.append(receiptPanel); }
-  const edit = node("section", "", "panel"); edit.append(node("h2", "Keep it moving."));
+  const receipt = result.customerEmail?.receipt;
+  const receiptStatus = !order.email ? "No email supplied" : !result.customerEmail?.available ? "Customer email setup not active" : !receipt ? "No receipt queued / earlier order" : `${receipt.status === "sent" ? "Accepted by email provider" : receipt.status} / ${receipt.attempts} attempts`;
+  selection.append(items, detailList([["Pieces", money(order.subtotal ?? order.unit_price * order.quantity)], ["Delivery", money(order.cod_fee)], ["Total", money(order.total)], ["Method", order.payment_method === "cod" ? "Cash on delivery" : "Easypaisa"], ["Transaction", order.transaction_id], ["Owner email alert", `${order.notification_status} / ${order.notification_attempts} attempts`], ["Customer order receipt", receiptStatus]]));
+  grid.append(customer, selection);
+  const edit = node("section", "", "panel"); edit.append(node("h2", "Update order status."), node("p", `Current status: ${STATUS_LABELS[order.status]}. Choose the next status, add a reason, then review and save.`, "fine-print"));
   const form = node("form", "", "order-editor"); form.id = "order-editor";
   const pair = node("div", "", "edit-pair"); pair.append(field("status", "Order status", order.status, { options: nextStatuses(order).map((key) => [key, STATUS_LABELS[key]]) }), field("payment_status", "Payment record", order.payment_status, { options: nextPayments(order).map((key) => [key, PAYMENT_LABELS[key]]) }));
   form.append(pair, node("p", "Confirm → dispatch → deliver. Easypaisa requires transfer verification before confirmation. Mark COD collected only after money is actually received. Refunds here are records, not transfers.", "fine-print"));
@@ -271,7 +272,10 @@ function renderDetail(result) {
   form.append(delivery, field("internal_note", "Internal note / not sent to customer", order.internal_note, { multiline: true, max: 2000 }));
   const testLabel = node("label", "", "checkbox"); const test = node("input"); test.type = "checkbox"; test.name = "is_test"; test.checked = order.is_test; testLabel.append(test, node("span", "Test order / exclude from revenue and customer lists")); form.append(testLabel);
   const reason = field("reason", "Reason for this update", "", { max: 2000 }); reason.querySelector("input").required = true; reason.querySelector("input").minLength = 2; form.append(reason);
-  const save = node("button", "Review & save changes ↗", "button primary"); save.type = "submit"; form.append(save); edit.append(form); content.append(edit);
+  const save = node("button", "Review & save changes ↗", "button primary"); save.type = "submit"; form.append(save); edit.append(form); content.append(edit, grid);
+  if (order.receipt_path) { const receiptPanel = node("section", "", "panel"); receiptPanel.append(node("h2", "Payment evidence."), node("p", "Check the actual Easypaisa transaction before marking it verified. A screenshot alone is not proof of settlement.")); const button = node("button", "Show private screenshot", "button compact"); button.type = "button"; button.dataset.receipt = "true"; receiptPanel.append(button); const image = node("img", "", "receipt-preview"); image.id = "private-receipt"; image.alt = "Private payment screenshot"; image.hidden = true; receiptPanel.append(image); content.append(receiptPanel); }
+  if (receipt && ["failed", "pending", "sending"].includes(receipt.status)) { const retry = node("button", "Retry customer order receipt", "button compact"); retry.type = "button"; retry.dataset.retryCustomerEmail = "true"; content.append(retry); }
+  if (receipt) content.append(node("p", "Customer receipt status means provider acceptance, not guaranteed inbox delivery. The five-minute job retries failures. Retries stop after 12 attempts or 23 hours from the first attempt; check Resend before contacting the customer manually.", "fine-print"));
   if (["failed", "pending", "sending"].includes(order.notification_status)) { const retry = node("button", "Queue original email alert again", "button compact"); retry.type = "button"; retry.dataset.retry = "true"; content.append(retry, node("p", "The existing five-minute retry job processes queued alerts. Alerts already sent or actively sending cannot be queued again.", "fine-print")); }
   const history = node("section", "", "panel"); history.append(node("h2", "Recorded changes.")); const list = node("div"); renderActivity(list, result.audit, true); history.append(list); content.append(history);
 }
@@ -332,6 +336,10 @@ document.addEventListener("click", async (event) => {
   if (button.dataset.export) exportData(button.dataset.export, button);
   if (button.dataset.suppress && await confirmAction(`Record an email marketing opt-out for ${button.dataset.suppress}? This removes the address from eligible exports. It does not update an external email platform.`)) busy(button, $("#workspace-status"), async () => { await api("suppress", {}, { email: button.dataset.suppress }); await loadView(); });
   if (button.dataset.receipt && state.detail) busy(button, $("#detail-status"), async () => { const reference = state.detail.reference; const result = await api("receipt", { reference }); if (!$("#order-detail").open || state.detail?.reference !== reference) return; const image = $("#private-receipt"); image.src = result.url; image.hidden = false; $("#detail-status").textContent = "Private preview link expires in 60 seconds. Do not share it."; });
+  if (button.dataset.retryCustomerEmail && state.detail) {
+    const order = state.detail;
+    if (await confirmAction("Queue the original customer order receipt again? This is not an order confirmation. Already accepted emails and expired retry windows cannot be resent here.")) busy(button, $("#detail-status"), async () => { await api("retry-customer-email", {}, { reference: order.reference }); await openOrder(order.reference); });
+  }
   if (button.dataset.retry && state.detail) {
     const order = { ...state.detail };
     if (await confirmAction("Queue the original owner alert again? The existing Cron job will process it. Check Resend first if delivery is uncertain to avoid repeated alerts.")) busy(button, $("#detail-status"), async () => { await api("retry", {}, { reference: order.reference, version: order.version }); await openOrder(order.reference); await loadView(); });

@@ -118,3 +118,11 @@ test("email preference stays hidden until its server migration is deployed", asy
   const active = await checkout({ ready: true, deliveryFee: 200, cartVersion: 1, ownerVersion: 1 });
   assert.equal(active.node("[data-marketing-consent]").hidden, false);
 });
+
+test("checkout promises a transactional receipt only after server activation", async () => {
+  const previous = await checkout({ ready: true, deliveryFee: 200 });
+  assert.doesNotMatch(previous.node("#customer-email-note").textContent, /receipt/);
+  const active = await checkout({ ready: true, deliveryFee: 200, customerEmailVersion: 1 });
+  assert.match(active.node("#customer-email-note").textContent, /order receipt and reference number/);
+  assert.match(active.node("#customer-email-note").textContent, /Not a marketing sign-up/);
+});

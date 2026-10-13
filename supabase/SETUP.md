@@ -1,5 +1,19 @@
 # Order backend setup
 
+## Customer order receipts / existing installation
+
+1. Run `customer-emails.sql` in the Gumnaam SQL Editor after the existing `owner-panel.sql` setup. Do not rerun `schema.sql`. The migration is transactional and can be rerun safely; it does not alter existing orders or send historical emails.
+2. Redeploy the complete regenerated `dashboard/create-order.ts` and `dashboard/retry-notifications.ts`, retaining JWT verification OFF and their existing CAPTCHA/private-Cron protections. Redeploy `dashboard/owner-api.ts` with JWT verification ON for customer email status/retry controls. These files are already packaged.
+3. Keep the existing Resend secrets, verified sender, receipt bucket and five-minute Cron schedule. No new secrets, SMTP settings or job are required. `GET create-order` should then include `customerEmailVersion: 1` alongside `ready: true`.
+4. Place one labelled test COD order with your own email; do not transfer money. Check that the owner alert and a separate customer receipt arrive. The receipt includes the reference, all items, delivery, total and pending status. A provider-accepted result does not prove inbox delivery; inspect Resend delivery/bounce events too.
+5. In Admin → Orders → Manage, confirm or cancel that test order with a reason. Test dispatch/delivery only on a non-production project or a genuine fulfilled order; do not record fake collections. Email receipt creation/retries must not change fulfilment or payment records. Direct browser access to `gumnaam_customer_emails` must remain denied.
+
+Email remains optional. A new online order with an email creates one immutable customer receipt in the same database transaction as the order through an INSERT trigger. Marketing opt-in is not required and no subscription is created. Email-less customers are contacted on WhatsApp. Walk-in invoices and pre-migration orders are not emailed automatically.
+
+Owner alerts and customer receipts have independent queues and provider idempotency keys. The existing worker attempts both even when one queue has an outage. Customer retries use a five-minute lease, exponential backoff, at most 12 attempts and a 23-hour window from the first attempt to stay inside [Resend's 24-hour idempotency retention](https://resend.com/docs/dashboard/emails/idempotency-keys). Once a receipt is accepted, the panel cannot resend it. After an expired/uncertain delivery, check Resend and contact the customer manually rather than resetting the first-attempt timestamp or changing the snapshot.
+
+Customer receipt templates live in `customer-emails.sql`; changing that template requires rerunning this migration and affects future orders only. Product copy is taken from the order snapshot; editing a product description does not require updating this migration. Status changes do not currently send automatic status-update emails; use the individual WhatsApp/email draft after verification. Replies to receipts go to `gumnaamofficialpk@gmail.com`, not the sender subdomain mailbox.
+
 The source is ready to deploy. It is not live merely because the files are in GitHub. Keep checkout closed until the checks below pass.
 
 ## 1. Choose the Supabase project

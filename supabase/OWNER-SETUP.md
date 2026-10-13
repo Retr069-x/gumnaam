@@ -42,6 +42,14 @@ Before live use, test in a non-production project: multiple colours/sizes, disco
 
 Renamed catalog items keep their original IDs, so product links and bags continue to work. To use the new names in new online orders/alerts, redeploy both regenerated `dashboard/create-order.ts` and `dashboard/retry-notifications.ts`. Past order names and old notification snapshots are not rewritten.
 
+## Order statuses and customer receipts
+
+Under Orders, choose **Manage**, then **Update order status**. Select the next allowed status and payment record, enter a reason, and choose **Review & save changes**. Review the confirmation dialog before saving. Pending → confirmed → dispatched → delivered is the normal workflow; cancellation is available along the way. Easypaisa must be verified before confirmation; COD must be actually collected before delivered. No payment is moved by these controls.
+
+To activate customer order-received emails, run `customer-emails.sql` and redeploy all three regenerated dashboard functions as described in `SETUP.md`. Existing secrets, bucket, owner account and Cron stay unchanged. A customer who supplies an email gets a transactional pending-order receipt regardless of marketing choice; no historical order or walk-in invoice is emailed automatically.
+
+The order's selection panel shows Owner email alert and Customer order receipt separately. “Accepted by email provider” is not proof of inbox delivery. A failed/pending customer receipt can be queued again with its own button, subject to the server lease, provider-acceptance and 23-hour retry-window safeguards. Retry does not change order/payment status or send a confirmation. Customer receipt retries are audited. Status edits still require a separate WhatsApp/email confirmation draft; they do not automatically email customers.
+
 ## Online reports and money
 
 Reports use the dates orders were placed in Pakistan time, and their currently recorded statuses. This is an order-date cohort, not a cash-flow ledger. Test orders are excluded. Historical records with incomplete payment states are not guessed to be paid.

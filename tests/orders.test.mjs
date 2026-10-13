@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import vm from "node:vm";
-import { createOrderHandler, validateOrder, validateCartOrder, imageType, notifyOrders, MAX_RECEIPT_BYTES } from "../supabase/functions/_shared/orders.mjs";
+import { createOrderHandler, validateOrder, validateCartOrder, imageType, notifyOrders, notifyCustomerOrders, MAX_RECEIPT_BYTES } from "../supabase/functions/_shared/orders.mjs";
 
 const base = {
   productId: "obsidian", size: "M", quantity: 1,
@@ -25,13 +25,14 @@ function mockService(options = {}) {
   const rows = [];
   const uploads = new Map();
   const emails = [];
+  const receipts = [];
   const calls = [];
   const fetcher = async (url, request = {}) => {
     calls.push([url, request]);
     if (url.includes("turnstile/v0")) return json({ success: !options.badCaptcha, action: "checkout", hostname: options.badHost ? "attacker.example" : "shop.example" });
     if (url === "https://api.resend.com/emails") {
       emails.push(JSON.parse(request.body));
-      return options.emailFails ? json({ error: "Unavailable" }, 500) : json({ id: "email-1" });
+      return options.emailFails || (options.customerEmailFails && request.headers["Idempotency-Key"].startsWith("gumnaam-customer")) ? json({ error: "Unavailable" }, 500) : json({ id: "email-1" });
     }
     assert.equal(request.headers.apikey, env.SUPABASE_SERVICE_ROLE_KEY);
     const path = new URL(url).pathname;
@@ -48,7 +49,24 @@ function mockService(options = {}) {
     if (path === "/rest/v1/rpc/gumnaam_delivery_fee") return options.feeNotConfigured ? json({ error: "Not found" }, 404) : json(200);
     if (path === "/rest/v1/rpc/gumnaam_cart_version") return options.cartNotConfigured ? json({ error: "Not found" }, 404) : json(1);
     if (path === "/rest/v1/rpc/gumnaam_owner_version") return options.ownerNotConfigured ? json({ error: "Not found" }, 404) : json(1);
+    if (path === "/rest/v1/rpc/gumnaam_customer_email_version") return options.customerNotConfigured ? json({}, 404) : json(1);
+    if (path === "/rest/v1/rpc/gumnaam_claim_customer_emails") {
+      if (options.customerNotConfigured) return json({}, 404);
+      if (options.customerQueueFails) return json({}, 500);
+      const input = JSON.parse(request.body);
+      const picked = receipts.filter((receipt) => receipt.status === "pending" && (!input.order_reference || receipt.reference === input.order_reference)).slice(0, 5);
+      picked.forEach((receipt) => { receipt.status = "sending"; receipt.attempts++; });
+      return json(picked);
+    }
+    if (path === "/rest/v1/gumnaam_customer_emails") {
+      if (options.customerAckFails && JSON.parse(request.body).status === "sent") { options.customerAckFails = false; return json({}, 500); }
+      const params = new URL(url).searchParams;
+      const receipt = receipts.find((row) => `eq.${row.reference}` === params.get("reference") && `eq.${row.status}` === params.get("status") && `eq.${row.attempts}` === params.get("attempts"));
+      if (receipt) Object.assign(receipt, JSON.parse(request.body));
+      return new Response(null, { status: 204 });
+    }
     if (path === "/rest/v1/rpc/gumnaam_claim_notifications") {
+      if (options.ownerQueueFails) return json({}, 500);
       const input = JSON.parse(request.body);
       const picked = rows.filter((row) => row.notification_status === "pending" && (!input.order_reference || row.reference === input.order_reference));
       picked.forEach((row) => { row.notification_status = "sending"; row.notification_attempts++; });
@@ -62,6 +80,7 @@ function mockService(options = {}) {
         if (rows.some((row) => row.request_key === data.request_key)) return json({ error: "Duplicate" }, 409);
         const row = { ...data, id: rows.length + 1, notification_status: "pending", notification_attempts: 0 };
         rows.push(row);
+        if (data.email && !options.customerNotConfigured) receipts.push({ reference: data.reference, status: "pending", attempts: 0, payload: { from: data.notification_payload.from, to: [data.email], subject: `Gumnaam / Order received ${data.reference}`, text: "Immutable customer receipt fixture" } });
         return json([row]);
       }
       if (request.method === "PATCH") {
@@ -78,7 +97,7 @@ function mockService(options = {}) {
   };
   const tasks = [];
   const handler = createOrderHandler(env, fetcher, (task) => tasks.push(task));
-  return { rows, uploads, emails, calls, handler, fetcher, tasks };
+  return { rows, receipts, uploads, emails, calls, handler, fetcher, tasks };
 }
 
 function request(overrides = {}, receipt, origin = "https://shop.example") {
@@ -128,7 +147,7 @@ test("unconfigured checkout is closed", async () => {
 test("health checks table and private bucket", async () => {
   const mock = mockService();
   const response = await mock.handler(new Request("https://test.example", { headers: { origin: "https://shop.example" } }));
-  assert.deepEqual(await response.json(), { ready: true, deliveryFee: 200, cartVersion: 1, ownerVersion: 1 });
+  assert.deepEqual(await response.json(), { ready: true, deliveryFee: 200, cartVersion: 1, ownerVersion: 1, customerEmailVersion: 1 });
   const bad = mockService({ publicBucket: true });
   assert.equal((await bad.handler(new Request("https://test.example"))).status, 503);
 });
@@ -143,7 +162,7 @@ test("checkout stays closed until the delivery-fee database update is applied", 
 test("owner setup is optional for existing checkout but required for new email opt-ins", async () => {
   const mock = mockService({ ownerNotConfigured: true });
   const health = await mock.handler(new Request("https://test.example"));
-  assert.deepEqual(await health.json(), { ready: true, deliveryFee: 200, cartVersion: 1, ownerVersion: 0 });
+  assert.deepEqual(await health.json(), { ready: true, deliveryFee: 200, cartVersion: 1, ownerVersion: 0, customerEmailVersion: 1 });
   const failed = await mock.handler(request({ email: "buyer@example.com", marketingConsent: true }));
   assert.equal(failed.status, 503);
   assert.equal(mock.rows.length, 0);
@@ -333,4 +352,109 @@ test("cart retry order is stable even when line ordering changes", async () => {
   assert.equal(first.reference, retry.reference);
   assert.equal(mock.rows.length, 1);
   await Promise.all(mock.tasks);
+});
+
+test("customer receipts are independent of marketing and use a separate provider key", async () => {
+  const mock = mockService();
+  const response = await mock.handler(request({ email: "buyer@example.com", marketingConsent: false }));
+  const result = await response.json();
+  await Promise.all(mock.tasks);
+  assert.equal(mock.rows[0].marketing_consent, undefined);
+  assert.equal(mock.receipts.length, 1);
+  assert.equal(mock.receipts[0].status, "sent");
+  const send = mock.calls.find(([url, options]) => url === "https://api.resend.com/emails" && options.headers["Idempotency-Key"].startsWith("gumnaam-customer"));
+  assert.equal(send[1].headers["Idempotency-Key"], `gumnaam-customer-receipt/${result.reference}`);
+  assert.deepEqual(JSON.parse(send[1].body).to, ["buyer@example.com"]);
+  assert.equal(mock.emails.length, 2);
+  assert.ok(mock.calls.findIndex(([url, options]) => url.endsWith("/gumnaam_orders") && options.method === "POST") < mock.calls.indexOf(send));
+  assert.equal((await mock.handler(request({ email: "buyer@example.com", marketingConsent: false }))).status, 200);
+  await Promise.all(mock.tasks);
+  assert.equal(mock.emails.length, 2);
+});
+
+test("customers without an email still order and receive no email queue entry", async () => {
+  const mock = mockService();
+  assert.equal((await mock.handler(request())).status, 201);
+  await Promise.all(mock.tasks);
+  assert.equal(mock.receipts.length, 0);
+  assert.equal(mock.emails.length, 1);
+});
+
+test("simultaneous checkouts create only one customer receipt and one owner alert", async () => {
+  const mock = mockService();
+  const responses = await Promise.all([mock.handler(request({ email: "buyer@example.com" })), mock.handler(request({ email: "buyer@example.com" }))]);
+  const results = await Promise.all(responses.map((response) => response.json()));
+  await Promise.all(mock.tasks);
+  assert.equal(results[0].reference, results[1].reference);
+  assert.equal(mock.receipts.length, 1);
+  assert.equal(mock.emails.length, 2);
+});
+
+test("lost database acknowledgement retries a customer send with the same provider key", async () => {
+  const mock = mockService({ customerAckFails: true });
+  await mock.handler(request({ email: "buyer@example.com" }));
+  await Promise.all(mock.tasks);
+  assert.equal(mock.receipts[0].status, "pending");
+  await notifyCustomerOrders(env, null, mock.fetcher);
+  assert.equal(mock.receipts[0].status, "sent");
+  const sends = mock.calls.filter(([url, options]) => url === "https://api.resend.com/emails" && options.headers["Idempotency-Key"].startsWith("gumnaam-customer"));
+  assert.equal(sends.length, 2);
+  assert.equal(sends[0][1].headers["Idempotency-Key"], sends[1][1].headers["Idempotency-Key"]);
+  assert.equal(sends[0][1].body, sends[1][1].body);
+});
+
+test("customer mail failure preserves the order, owner alert, and immutable retry payload", async () => {
+  const options = { customerEmailFails: true };
+  const mock = mockService(options);
+  assert.equal((await mock.handler(request({ email: "buyer@example.com" }))).status, 201);
+  await Promise.all(mock.tasks);
+  assert.equal(mock.rows[0].notification_status, "sent");
+  assert.equal(mock.receipts[0].status, "pending");
+  assert.equal(mock.receipts[0].attempts, 1);
+  assert.ok(Date.parse(mock.receipts[0].next_at) > Date.now());
+  options.customerEmailFails = false;
+  await notifyOrders(env, null, mock.fetcher);
+  assert.equal(mock.receipts[0].status, "sent");
+  assert.equal(mock.receipts[0].attempts, 2);
+  const sends = mock.calls.filter(([url, options]) => url === "https://api.resend.com/emails" && options.headers["Idempotency-Key"].startsWith("gumnaam-customer"));
+  assert.equal(sends[0][1].body, sends[1][1].body);
+  assert.equal(sends[0][1].headers["Idempotency-Key"], sends[1][1].headers["Idempotency-Key"]);
+  assert.equal(mock.rows.length, 1);
+});
+
+test("owner queue failure does not prevent independent customer delivery", async () => {
+  const mock = mockService({ ownerQueueFails: true });
+  await mock.handler(request({ email: "buyer@example.com" }));
+  await Promise.all(mock.tasks.map((task) => task.catch(() => {})));
+  assert.equal(mock.receipts[0].status, "sent");
+});
+
+test("customer queue failure does not prevent independent owner delivery", async () => {
+  const mock = mockService({ customerQueueFails: true });
+  await mock.handler(request({ email: "buyer@example.com" }));
+  await Promise.all(mock.tasks.map((task) => task.catch(() => {})));
+  assert.equal(mock.rows[0].notification_status, "sent");
+});
+
+test("missing customer migration does not break existing checkout or owner alerts", async () => {
+  const mock = mockService({ customerNotConfigured: true });
+  const health = await (await mock.handler(new Request("https://test.example"))).json();
+  assert.equal(health.ready, true);
+  assert.equal(health.customerEmailVersion, 0);
+  assert.equal((await mock.handler(request({ email: "buyer@example.com" }))).status, 201);
+  await Promise.all(mock.tasks);
+  assert.equal(mock.rows[0].notification_status, "sent");
+  assert.deepEqual(await notifyCustomerOrders(env, null, mock.fetcher), { available: false, attempted: 0, sent: 0 });
+});
+
+test("exhausted customer sends are failed, not silently marked delivered", async () => {
+  const options = { customerEmailFails: true };
+  const mock = mockService(options);
+  await mock.handler(request({ email: "buyer@example.com" }));
+  await Promise.all(mock.tasks);
+  mock.receipts[0].attempts = 11;
+  await notifyCustomerOrders(env, null, mock.fetcher);
+  assert.equal(mock.receipts[0].status, "failed");
+  assert.equal(mock.receipts[0].attempts, 12);
+  assert.equal(mock.rows[0].status, "pending_confirmation");
 });

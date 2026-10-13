@@ -32,6 +32,8 @@ function mock(options = {}) {
       return json([{ reference, version: 1, customer_name: "Buyer" }]);
     }
     if (path === "/rest/v1/gumnaam_owner_audit") return json([]);
+    if (path === "/rest/v1/gumnaam_customer_emails") return options.customerNotConfigured ? json({}, 404) : json([{ status: "sent", attempts: 1, sent_at: "2026-10-13", first_attempt_at: "2026-10-13" }]);
+    if (path === "/rest/v1/rpc/gumnaam_owner_retry_customer_email") return json(true);
     if (path.startsWith("/storage/v1/object/sign/payment-receipts/")) return json({ signedURL: "/object/sign/payment-receipts/test.png?token=temporary" });
     throw new Error(`Unexpected request: ${path}`);
   };
@@ -132,6 +134,28 @@ test("order details do not request payload hashes, retry tokens or email payload
   assert.equal((await server.handler(request("order", null, { query: `&reference=${reference}` }))).status, 200);
   const url = server.calls.find(({ url }) => url.includes("gumnaam_orders?")).url;
   assert.doesNotMatch(url, /request_key|payload_hash|notification_payload/);
+});
+
+test("owner order details expose customer email status, never the stored payload", async () => {
+  const server = mock();
+  const response = await server.handler(request("order", null, { query: `&reference=${reference}` }));
+  assert.equal((await response.json()).customerEmail.receipt.status, "sent");
+  const call = server.calls.find(({ url }) => url.includes("gumnaam_customer_emails?"));
+  assert.doesNotMatch(call.url, /payload|provider_id/);
+  assert.match(call.url, /select=status,attempts,sent_at,first_attempt_at/);
+  const previous = await mock({ customerNotConfigured: true }).handler(request("order", null, { query: `&reference=${reference}` }));
+  assert.equal(previous.status, 200);
+  assert.deepEqual((await previous.json()).customerEmail, { available: false });
+});
+
+test("only an authorised owner may queue customer receipts with the verified actor", async () => {
+  const server = mock();
+  const input = { reference, actor_id: "forged" };
+  assert.equal((await server.handler(request("retry-customer-email", input, { noAuth: true }))).status, 401);
+  assert.equal((await mock({ notOwner: true }).handler(request("retry-customer-email", input))).status, 403);
+  assert.equal((await server.handler(request("retry-customer-email", input))).status, 200);
+  const call = server.calls.find(({ url }) => url.endsWith("gumnaam_owner_retry_customer_email"));
+  assert.deepEqual(JSON.parse(call.request.body), { p_actor: ownerId, p_reference: reference });
 });
 test("marketing exports force opt-in selection and exclude phone numbers", async () => {
   const server = mock();

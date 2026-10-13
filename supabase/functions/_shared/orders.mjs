@@ -148,7 +148,7 @@ function alertBody(order, env) {
   ].join("\n");
 }
 
-export async function notifyOrders(env, reference = null, fetcher = fetch) {
+async function notifyOwnerOrders(env, reference = null, fetcher = fetch) {
   const db = service(env, fetcher);
   await db(`/rest/v1/gumnaam_orders?notification_status=eq.sending&notification_attempts=gte.12&notification_lease_until=lt.${new Date().toISOString()}`, {
     method: "PATCH", body: JSON.stringify({ notification_status: "failed", notification_lease_until: null })
@@ -177,6 +177,42 @@ export async function notifyOrders(env, reference = null, fetcher = fetch) {
     }
   }
   return { attempted: claimed.length, sent };
+}
+
+export async function notifyCustomerOrders(env, reference = null, fetcher = fetch) {
+  const db = service(env, fetcher);
+  let claimed;
+  try {
+    claimed = await db("/rest/v1/rpc/gumnaam_claim_customer_emails", { method: "POST", body: JSON.stringify({ order_reference: reference, batch_size: 5 }) });
+  } catch (error) {
+    if (error.httpStatus === 404) return { available: false, attempted: 0, sent: 0 };
+    throw error;
+  }
+  let sent = 0;
+  for (const receipt of claimed) {
+    const path = `/rest/v1/gumnaam_customer_emails?reference=eq.${receipt.reference}&status=eq.sending&attempts=eq.${receipt.attempts}`;
+    try {
+      const response = await fetcher("https://api.resend.com/emails", {
+        method: "POST", signal: AbortSignal.timeout(15000),
+        headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json", "Idempotency-Key": `gumnaam-customer-receipt/${receipt.reference}` },
+        body: JSON.stringify(receipt.payload)
+      });
+      if (!response.ok) throw new Error("Customer receipt rejected.");
+      const result = await response.json();
+      if (!result.id) throw new Error("Customer receipt response missing.");
+      await db(path, { method: "PATCH", body: JSON.stringify({ status: "sent", sent_at: new Date().toISOString(), provider_id: result.id, lease_until: null }) });
+      sent++;
+    } catch {
+      await db(path, { method: "PATCH", body: JSON.stringify({ status: receipt.attempts >= 12 ? "failed" : "pending", lease_until: null, next_at: new Date(Date.now() + Math.min(60, 2 ** receipt.attempts) * 60000).toISOString() }) });
+    }
+  }
+  return { available: true, attempted: claimed.length, sent };
+}
+
+export async function notifyOrders(env, reference = null, fetcher = fetch) {
+  const results = await Promise.allSettled([notifyOwnerOrders(env, reference, fetcher), notifyCustomerOrders(env, reference, fetcher)]);
+  for (const result of results) if (result.status === "rejected") throw result.reason;
+  return { ...results[0].value, customer: results[1].value };
 }
 
 async function limitedForm(request) {
@@ -218,7 +254,9 @@ export function createOrderHandler(env, fetcher = fetch, background = (task) => 
         try { cartVersion = await db("/rest/v1/rpc/gumnaam_cart_version", { method: "POST", body: "{}" }); } catch {}
         let ownerVersion = 0;
         try { ownerVersion = await db("/rest/v1/rpc/gumnaam_owner_version", { method: "POST", body: "{}" }); } catch {}
-        return json({ ready, deliveryFee: DELIVERY_FEE, cartVersion, ownerVersion }, ready ? 200 : 503);
+        let customerEmailVersion = 0;
+        try { customerEmailVersion = await db("/rest/v1/rpc/gumnaam_customer_email_version", { method: "POST", body: "{}" }); } catch {}
+        return json({ ready, deliveryFee: DELIVERY_FEE, cartVersion, ownerVersion, customerEmailVersion }, ready ? 200 : 503);
       } catch { return json({ ready: false }, 503); }
     }
     if (request.method !== "POST") return json({ error: "Method not allowed." }, 405);

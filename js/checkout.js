@@ -19,6 +19,7 @@ document.addEventListener("DOMContentLoaded", function checkout() {
   let requestKey;
   let lastPayload;
   let endpoint;
+  let customerEmails = false;
 
   for (const product of catalog) {
     productSelect.add(new Option(product.name, product.id));
@@ -120,6 +121,9 @@ document.addEventListener("DOMContentLoaded", function checkout() {
       }
       const marketing = document.querySelector("[data-marketing-consent]");
       if (marketing) marketing.hidden = health.ownerVersion !== 1;
+      customerEmails = health.customerEmailVersion === 1;
+      const emailNote = document.querySelector("#customer-email-note");
+      if (emailNote) emailNote.textContent = customerEmails ? "Add your email for an order receipt and reference number. Not a marketing sign-up." : "Optional. We’ll confirm your order on WhatsApp.";
       ready = true;
       form.querySelector('[value="easypaisa"]').disabled = false;
       window.onGumnaamCaptchaReady = () => {
@@ -197,6 +201,7 @@ document.addEventListener("DOMContentLoaded", function checkout() {
       document.querySelector("#result-reference").textContent = result.reference;
       document.querySelector("#result-total").textContent = `Order total: ${money(result.total)}.`;
       document.querySelector("#result-message").textContent = prepaid ? "Your order and screenshot have been received. Payment is still pending verification. We’ll confirm on WhatsApp after checking the transfer." : "Your order request has been received. We’ll confirm availability and delivery on WhatsApp. Pay the total when your parcel arrives.";
+      if (customerEmails && order.email) document.querySelector("#result-message").textContent += " An order receipt is queued for your email. Check your inbox or spam folder; keep this reference if it doesn’t arrive.";
       panel.hidden = false;
       panel.focus();
       panel.scrollIntoView({ behavior: "instant", block: "start" });
