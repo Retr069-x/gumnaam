@@ -238,7 +238,7 @@ function field(name, label, value, options = {}) {
   const control = node(options.options ? "select" : options.multiline ? "textarea" : "input");
   control.name = name;
   if (options.options) for (const [key, text] of options.options) { const option = node("option", text); option.value = key; control.append(option); }
-  else { control.type = "text"; control.maxLength = options.max || 100; }
+  else { if (!options.multiline) control.type = "text"; control.maxLength = options.max || 100; }
   control.value = value;
   wrapper.append(control);
   return wrapper;

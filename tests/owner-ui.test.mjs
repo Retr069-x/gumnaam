@@ -10,7 +10,7 @@ const html = await readFile(new URL("../admin.html", import.meta.url), "utf8");
 const source = (await readFile(new URL("../js/owner.js", import.meta.url), "utf8")).replace(/^import [^\n]+\r?\n/gm, "");
 const invoiceSource = (await readFile(new URL("../js/owner-invoices.mjs", import.meta.url), "utf8")).replace(/^import [^\n]+\r?\n/gm, "").replace(/^export /gm, "");
 class Element {
-  constructor(tag, document) { this.tagName = tag; this.document = document; this.children = []; this.attributes = {}; this.dataset = {}; this.events = {}; this.style = {}; this._text = ""; this._value = undefined; this.hidden = false; this.open = false; this.disabled = false; }
+  constructor(tag, document) { this.tagName = tag; this.document = document; this.children = []; this.attributes = {}; this.dataset = {}; this.events = {}; this.style = {}; this._text = ""; this._value = undefined; this.hidden = false; this.open = false; this.disabled = false; if (tag === "textarea") Object.defineProperty(this, "type", { get: () => "textarea" }); }
   set textContent(value) { this._text = String(value); this.children = []; }
   get textContent() { return this._text + this.children.map((child) => child.textContent).join(""); }
   get value() { return this._value ?? (this.tagName === "select" ? this.children[0]?.value || "" : ""); }
@@ -89,7 +89,7 @@ async function app(options = {}) {
     }
     return new Response(JSON.stringify(result), { status: 200 });
   };
-  vm.runInNewContext(`${invoiceSource}\n${source}`, { ...model, ...invoiceModel, INVOICE_CONTACTS, customerInvoicePDF: async () => new Blob(['test'], { type: 'application/pdf' }), createOwnerAuth: () => auth, window: { GUMNAAM_OWNER: { endpoint: "https://test.supabase.co/functions/v1/owner-api" }, addEventListener: (name, callback) => { windowEvents[name] = callback; }, crypto: { randomUUID: () => '11111111-1111-4111-8111-111111111111' }, print() {} }, document, fetch: fetcher, URL, URLSearchParams, AbortSignal, Intl, Date, setInterval() {}, setTimeout, FormData: class { constructor(form) { this.values = form.all().filter((el) => el.name && !(el.type === "checkbox" && !el.checked)).map((el) => [el.name, el.type === "checkbox" ? "on" : el.value]); } get(key) { return this.values.find(([name]) => name === key)?.[1] ?? null; } [Symbol.iterator]() { return this.values[Symbol.iterator](); } } });
+  vm.runInNewContext(`"use strict";\n${invoiceSource}\n${source}`, { ...model, ...invoiceModel, INVOICE_CONTACTS, customerInvoicePDF: async () => new Blob(['test'], { type: 'application/pdf' }), createOwnerAuth: () => auth, window: { GUMNAAM_OWNER: { endpoint: "https://test.supabase.co/functions/v1/owner-api" }, addEventListener: (name, callback) => { windowEvents[name] = callback; }, crypto: { randomUUID: () => '11111111-1111-4111-8111-111111111111' }, print() {} }, document, fetch: fetcher, URL, URLSearchParams, AbortSignal, Intl, Date, setInterval() {}, setTimeout, FormData: class { constructor(form) { this.values = form.all().filter((el) => el.name && !(el.type === "checkbox" && !el.checked)).map((el) => [el.name, el.type === "checkbox" ? "on" : el.value]); } get(key) { return this.values.find(([name]) => name === key)?.[1] ?? null; } [Symbol.iterator]() { return this.values[Symbol.iterator](); } } });
   const click = async (element) => { await document.fire("click", { target: element }); await settle(); };
   const login = async () => { await document.querySelector("#login-form").fire("submit"); await settle(); };
   return { document, requests, click, login, windowEvents };
@@ -127,6 +127,20 @@ test("owner editor sends only chosen changes with a version and reason after con
   const update = JSON.parse(ui.requests.find((request) => request.action === "update").request.body);
   assert.deepEqual(update.patch, { status: "confirmed" });
   assert.equal(update.version, 1); assert.equal(update.reason, "Stock checked");
+});
+
+test("Manage renders the complete editor without assigning the read-only textarea type", async () => {
+  const ui = await app({ order: { internal_note: "Check stock before dispatch." } }); await ui.login();
+  await ui.document.querySelector("#owner-nav").fire("click", { target: ui.document.querySelector('[data-view="orders"]') }); await settle();
+  await ui.click(ui.document.querySelector("[data-order]"));
+  assert.equal(ui.document.querySelector("#detail-status").textContent, "");
+  const editor = ui.document.querySelector("#order-editor");
+  assert.ok(editor);
+  assert.equal(editor.elements.internal_note.type, "textarea");
+  assert.equal(editor.elements.internal_note.value, "Check stock before dispatch.");
+  assert.equal(editor.elements.internal_note.maxLength, 2000);
+  assert.equal(editor.elements.reason.required, true);
+  assert.ok(editor.querySelector('button[type="submit"]'));
 });
 
 test("order management puts status controls first and distinguishes customer receipts from owner alerts", async () => {
